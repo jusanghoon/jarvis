@@ -1,0 +1,121 @@
+﻿<Application x:Class="javis.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+
+        <!-- 공통 컬러 -->
+        <SolidColorBrush x:Key="TextPrimary" Color="#EAF6FF"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#A8C7D9"/>
+        <SolidColorBrush x:Key="GlassBtnBg" Color="#22FFFFFF"/>
+        <SolidColorBrush x:Key="GlassBtnBgHover" Color="#33FFFFFF"/>
+        <SolidColorBrush x:Key="GlassBtnBgPressed" Color="#44FFFFFF"/>
+        <SolidColorBrush x:Key="GlassBtnBorder" Color="#55BFE9FF"/>
+
+        <!-- ✅ 모든 Button에 자동 적용되는 기본 스타일(키 없음) -->
+        <Style TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Background" Value="{StaticResource GlassBtnBg}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource GlassBtnBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="12"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource GlassBtnBgHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource GlassBtnBgPressed}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 타이틀바 버튼용(작게) -->
+        <Style x:Key="TitleBarButton" TargetType="Button">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="44"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="#11FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <!-- 아이콘 폰트(Windows 기본) -->
+        <FontFamily x:Key="IconFont">Segoe MDL2 Assets</FontFamily>
+
+        <!-- 워터마크(플레이스홀더) TextBox -->
+        <Style x:Key="WatermarkTextBox" TargetType="TextBox">
+            <Setter Property="Foreground" Value="#EAF6FF"/>
+            <Setter Property="Background" Value="#22FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10"
+                                SnapsToDevicePixels="True">
+                            <Grid>
+                                <ScrollViewer x:Name="PART_ContentHost"
+                                              Margin="{TemplateBinding Padding}"/>
+
+                                <!-- Tag에 넣은 텍스트를 워터마크로 표시 -->
+                                <TextBlock x:Name="Wm"
+                                           Text="{TemplateBinding Tag}"
+                                           Margin="{TemplateBinding Padding}"
+                                           Foreground="#88EAF6FF"
+                                           Opacity="0.6"
+                                           IsHitTestVisible="False"
+                                           VerticalAlignment="Center"
+                                           Visibility="Collapsed"/>
+                            </Grid>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Text" Value="">
+                                <Setter TargetName="Wm" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Wm" Property="Visibility" Value="Collapsed"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#55BFE9FF"/>
+                            </Trigger>
+
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Application.Resources>
+</Application>

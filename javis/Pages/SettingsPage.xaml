@@ -1,0 +1,62 @@
+<Page x:Class="javis.Pages.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="Transparent">
+
+    <Grid Margin="14">
+        <Border CornerRadius="16"
+                Background="#22000000"
+                BorderBrush="#33BFE9FF"
+                BorderThickness="1"
+                Padding="16">
+
+            <StackPanel>
+
+                <TextBlock Text="Settings" Foreground="#EAF6FF" FontSize="18" FontWeight="SemiBold"/>
+
+                <Border Margin="0,14,0,0" CornerRadius="12"
+                        Background="#11FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1"
+                        Padding="14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="160"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="Model"
+                                   Foreground="#A8C7D9"
+                                   VerticalAlignment="Center"/>
+
+                        <ComboBox Grid.Row="0" Grid.Column="1"
+                                  Height="36"
+                                  Background="#F2FFFFFF"
+                                  Foreground="#0B1A2A"
+                                  BorderBrush="#22FFFFFF"
+                                  SelectedValuePath="Content"
+                                  SelectedValue="{Binding Model, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                            <ComboBoxItem Content="qwen3:4b" Foreground="#0B1A2A"/>
+                            <ComboBoxItem Content="qwen3:8b" Foreground="#0B1A2A"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                   Margin="0,10,0,0"
+                                   Text="Hotkeys"
+                                   Foreground="#A8C7D9"
+                                   VerticalAlignment="Center"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="1"
+                                   Margin="0,10,0,0"
+                                   Text="Ctrl+1 = qwen3:4b / Ctrl+2 = qwen3:8b"
+                                   Foreground="#EAF6FF"/>
+                    </Grid>
+                </Border>
+
+            </StackPanel>
+        </Border>
+    </Grid>
+</Page>
