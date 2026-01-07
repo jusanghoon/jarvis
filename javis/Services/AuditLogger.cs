@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -12,10 +12,14 @@ namespace javis.Services;
 
 public sealed class AuditLogger : IAsyncDisposable
 {
+    private const string ArchiveSchema = "jarvis.archive.v1";
+
     private readonly Channel<string> _channel;
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _writerTask;
-    private readonly JsonSerializerOptions _jsonOpt = new() { WriteIndented = false };
+    private static readonly JsonSerializerOptions _jsonOpts = new() { WriteIndented = false };
+
+    private string? _currentFile;
 
     public string LogsDir { get; }
     public string SessionId { get; } = Guid.NewGuid().ToString("N");
@@ -38,37 +42,90 @@ public sealed class AuditLogger : IAsyncDisposable
         _writerTask = Task.Run(WriterLoop);
     }
 
+    // ? file IO는 WriterLoop에서만. 외부는 무조건 채널로만.
+    public bool TryWriteJsonl(object record)
+    {
+        if (!Enabled) return false;
+
+        try
+        {
+            var line = JsonSerializer.Serialize(record, _jsonOpts);
+            return _channel.Writer.TryWrite(line);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public bool WriteArchive(
+        DateTimeOffset ts,
+        string eventId,
+        string content,
+        string role,
+        string state,
+        Dictionary<string, object?>? meta = null)
+    {
+        meta ??= new Dictionary<string, object?>();
+
+        if (!meta.ContainsKey("kind"))
+            meta["kind"] = "note";
+
+        try
+        {
+            if (!meta.ContainsKey("model"))
+            {
+                var model = RuntimeSettings.Instance?.Model;
+                if (!string.IsNullOrWhiteSpace(model))
+                    meta["model"] = model;
+            }
+        }
+        catch
+        {
+            // never crash logging
+        }
+
+        var envelope = new Dictionary<string, object?>
+        {
+            ["schema"] = ArchiveSchema,
+            ["kind"] = "archive",
+            ["ts"] = ts,
+            ["tsUnixMs"] = ts.ToUnixTimeMilliseconds(),
+            ["eventId"] = eventId,
+            ["role"] = role,
+            ["state"] = state,
+            ["content"] = Trunc(content ?? ""),
+            ["meta"] = TruncateObject(meta)
+        };
+
+        return TryWriteJsonl(envelope);
+    }
+
     public void Log(string kind, object data)
     {
         if (!Enabled) return;
 
-        var payload = new Dictionary<string, object?>
+        _ = TryWriteJsonl(new Dictionary<string, object?>
         {
             ["ts"] = DateTimeOffset.Now.ToString("O"),
             ["session"] = SessionId,
             ["kind"] = kind,
             ["data"] = TruncateObject(data)
-        };
-
-        var line = JsonSerializer.Serialize(payload, _jsonOpt);
-        _channel.Writer.TryWrite(line);
+        });
     }
 
     public void LogText(string kind, string text, object? extra = null)
     {
         if (!Enabled) return;
 
-        var payload = new Dictionary<string, object?>
+        _ = TryWriteJsonl(new Dictionary<string, object?>
         {
             ["ts"] = DateTimeOffset.Now.ToString("O"),
             ["session"] = SessionId,
             ["kind"] = kind,
             ["text"] = Trunc(text),
             ["extra"] = extra is null ? null : TruncateObject(extra)
-        };
-
-        var line = JsonSerializer.Serialize(payload, _jsonOpt);
-        _channel.Writer.TryWrite(line);
+        });
     }
 
     private async Task WriterLoop()
@@ -87,8 +144,16 @@ public sealed class AuditLogger : IAsyncDisposable
 
                 if (sb.Length > 0)
                 {
-                    var file = Path.Combine(LogsDir, $"audit-{DateTime.Now:yyyy-MM-dd}.jsonl");
-                    await File.AppendAllTextAsync(file, sb.ToString(), Encoding.UTF8, _cts.Token);
+                    var file = System.IO.Path.Combine(LogsDir, $"audit-{DateTime.Now:yyyy-MM-dd}.jsonl");
+                    if (!string.Equals(_currentFile, file, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _currentFile = file;
+                        var dir = System.IO.Path.GetDirectoryName(file);
+                        if (!string.IsNullOrWhiteSpace(dir))
+                            Directory.CreateDirectory(dir);
+                    }
+
+                    await File.AppendAllTextAsync(_currentFile, sb.ToString(), Encoding.UTF8, _cts.Token);
                 }
             }
         }
@@ -126,7 +191,7 @@ public sealed class AuditLogger : IAsyncDisposable
 
         try
         {
-            var json = JsonSerializer.Serialize(obj, _jsonOpt);
+            var json = JsonSerializer.Serialize(obj, _jsonOpts);
             if (json.Length <= MaxFieldChars) return JsonSerializer.Deserialize<object>(json);
             return new { truncated = true, len = json.Length, head = json.Substring(0, MaxFieldChars) };
         }

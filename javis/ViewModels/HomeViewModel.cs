@@ -1,7 +1,10 @@
-using System;
+ï»¿using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Jarvis.Core.Archive;
 using javis.Models;
 using javis.Services;
 
@@ -10,11 +13,12 @@ namespace javis.ViewModels;
 public partial class HomeViewModel : ObservableObject
 {
     private readonly CalendarTodoStore _store = new();
+    private readonly SemaphoreSlim _refreshGate = new(1, 1);
 
     public HomeViewModel()
     {
         SelectedDate = DateTime.Today;
-        Refresh();
+        _ = Refresh();
     }
 
     [ObservableProperty]
@@ -27,31 +31,73 @@ public partial class HomeViewModel : ObservableObject
     [ObservableProperty]
     private string _summaryText = "";
 
-    public void Refresh()
+    public ObservableCollection<FossilEntry> RecentFossils { get; } = new();
+
+    public bool IsFossilsLoading { get; private set; }
+
+    public string? FossilsError { get; private set; }
+
+    public async Task Refresh()
     {
-        var items = _store
-            .GetUpcoming(DateTime.Today, 30)
-            .Where(x => !x.IsDone)
-            .OrderBy(x => x.Date.Date)
-            .ThenBy(x => x.Time ?? TimeSpan.MaxValue)
-            .Take(3)
-            .ToList();
+        if (!await _refreshGate.WaitAsync(0)) return;
 
-        UpcomingTop3.Clear();
-        foreach (var it in items)
-            UpcomingTop3.Add(it);
-
-        SummaryText = items.Count == 0
-            ? "´Ù°¡¿À´Â ÇÒ ÀÏÀÌ ¾ø½À´Ï´Ù."
-            : $"´Ù°¡¿À´Â ÇÒ ÀÏ {items.Count}°³ (»óÀ§ 3°³ Ç¥½Ã)";
-
-        TodoDates.Clear();
-        foreach (var d in _store.LoadAll()
-                                .Select(x => x.Date.Date)
-                                .Distinct()
-                                .OrderBy(x => x))
+        try
         {
-            TodoDates.Add(d);
+            var items = _store
+                .GetUpcoming(DateTime.Today, 30)
+                .Where(x => !x.IsDone)
+                .OrderBy(x => x.Date.Date)
+                .ThenBy(x => x.Time ?? TimeSpan.MaxValue)
+                .Take(3)
+                .ToList();
+
+            UpcomingTop3.Clear();
+            foreach (var it in items)
+                UpcomingTop3.Add(it);
+
+            SummaryText = items.Count == 0
+                ? "ë‹¤ê°€ì˜¤ëŠ” í•  ì¼ì´ ì—†ìŠµë‹ˆë‹¤."
+                : $"ë‹¤ê°€ì˜¤ëŠ” í•  ì¼ {items.Count}ê°œ (ìµœëŒ€ 3ê°œ í‘œì‹œ)";
+
+            TodoDates.Clear();
+            foreach (var d in _store.LoadAll()
+                                    .Select(x => x.Date.Date)
+                                    .Distinct()
+                                    .OrderBy(x => x))
+            {
+                TodoDates.Add(d);
+            }
+
+            var kernel = javis.App.Kernel;
+            if (kernel?.Fossils is null) return;
+
+            try
+            {
+                IsFossilsLoading = true;
+                FossilsError = null;
+                OnPropertyChanged(nameof(IsFossilsLoading));
+                OnPropertyChanged(nameof(FossilsError));
+
+                var fossils = await kernel.Fossils.GetRecentFossilsAsync(10, scanDays: 7);
+
+                RecentFossils.Clear();
+                foreach (var x in fossils)
+                    RecentFossils.Add(x);
+            }
+            catch (Exception ex)
+            {
+                FossilsError = ex.Message;
+                OnPropertyChanged(nameof(FossilsError));
+            }
+            finally
+            {
+                IsFossilsLoading = false;
+                OnPropertyChanged(nameof(IsFossilsLoading));
+            }
+        }
+        finally
+        {
+            _refreshGate.Release();
         }
     }
 }

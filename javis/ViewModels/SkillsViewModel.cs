@@ -1,10 +1,11 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using javis.Models;
 using javis.Services;
+using Jarvis.Core.Archive;
 
 namespace javis.ViewModels;
 
@@ -90,6 +91,17 @@ public partial class SkillsViewModel : ObservableObject
             }
             catch (Exception ex)
             {
+                try
+                {
+                    javis.App.Kernel?.Archive.Record(
+                        content: $"CRACK_DETECTED: {ex.GetType().Name}: {ex.Message}",
+                        role: GEMSRole.Logician,
+                        state: KnowledgeState.Active,
+                        sessionId: javis.App.Kernel?.Logger?.SessionId,
+                        meta: new() { ["kind"] = "crack", ["where"] = "SkillsViewModel.Run" });
+                }
+                catch { }
+
                 Status = $"Plugin error: {ex.Message}";
                 return;
             }

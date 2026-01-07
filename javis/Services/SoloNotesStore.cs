@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -20,6 +20,16 @@ public sealed class SoloNotesStore
 
     public async Task AppendAsync(string kind, object data, CancellationToken ct)
     {
+        try
+        {
+            if (!PluginHost.Instance.SoloLimiter.TryAcquire())
+                return;
+        }
+        catch
+        {
+            // never block notes on limiter failure
+        }
+
         var lineObj = new { ts = DateTimeOffset.Now.ToString("O"), kind, data };
         var line = JsonSerializer.Serialize(lineObj, _opt) + "\n";
         var path = Path.Combine(Dir, $"notes-{DateTime.Now:yyyy-MM-dd}.jsonl");

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -49,7 +49,7 @@ Skill JSON\uC740 steps \uBC30\uC5F4\uC744 \uAC16\uB294\uB2E4:
 """;
 
         var raw = await ollama.GenerateAsync(prompt);
-        var json = ExtractFirstJsonObject(raw);
+        var json = JsonUtil.ExtractFirstJsonObject(raw);
 
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
@@ -68,25 +68,6 @@ Skill JSON\uC740 steps \uBC30\uC5F4\uC744 \uAC16\uB294\uB2E4:
             Sanitize(sf, ".skill.json"),
             JsonNode.Parse(spec)!.ToJsonString(new JsonSerializerOptions { WriteIndented = true })
         );
-    }
-
-    private static string ExtractFirstJsonObject(string s)
-    {
-        var start = s.IndexOf('{');
-        if (start < 0) throw new Exception("JSON \uC2DC\uC791 '{' \uC5C6\uC74C");
-
-        int depth = 0;
-        for (int i = start; i < s.Length; i++)
-        {
-            if (s[i] == '{') depth++;
-            else if (s[i] == '}')
-            {
-                depth--;
-                if (depth == 0) return s.Substring(start, i - start + 1);
-            }
-        }
-
-        throw new Exception("JSON \uCD94\uCD9C \uC2E4\uD328");
     }
 
     private static string Sanitize(string file, string suffix)

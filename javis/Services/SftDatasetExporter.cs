@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -35,7 +35,7 @@ public sealed class SftDatasetExporter
         var samples = new List<ChatMlSample>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // 1) Canon ¡æ Q/A ÅÛÇÃ¸´À¸·Î º¯È¯
+        // 1) Canon â†’ Q/A í…œí”Œë¦¿ìœ¼ë¡œ ë³€í™˜
         if (includeCanon)
         {
             var canonItems = ReadCanonItems(_host.Canon.CanonPath, maxCanonItems);
@@ -59,7 +59,7 @@ public sealed class SftDatasetExporter
             }
         }
 
-        // 2) SOLO ³ëÆ® ¡æ ¡°¿ä¾à/Á¤¸®/´ÙÀ½ Çàµ¿¡± ½ºÅ¸ÀÏ ÇĞ½À »ùÇÃ·Î º¯È¯
+        // 2) SOLO ë…¸íŠ¸ â†’ â€œìš”ì•½/ì •ë¦¬/ë‹¤ìŒ í–‰ë™â€ ìŠ¤íƒ€ì¼ í•™ìŠµ ìƒ˜í”Œë¡œ ë³€í™˜
         if (includeSoloNotes)
         {
             var noteItems = ReadRecentSoloNotes(maxDays: 7, maxItems: maxNotesItems);
@@ -67,7 +67,7 @@ public sealed class SftDatasetExporter
             {
                 ct.ThrowIfCancellationRequested();
 
-                // ³ëÆ® ³»¿ëÀÌ ³Ê¹« ÂªÀ¸¸é ½ºÅµ
+                // ë…¸íŠ¸ ë‚´ìš©ì´ ë„ˆë¬´ ì§§ìœ¼ë©´ ìŠ¤í‚µ
                 if (it.Body.Length < 40) continue;
 
                 foreach (var (q, a) in BuildNoteStyleVariants(it))
@@ -85,7 +85,7 @@ public sealed class SftDatasetExporter
             }
         }
 
-        // 3) ÆÄÀÏ·Î ÀúÀå (jsonl)
+        // 3) íŒŒì¼ë¡œ ì €ì¥ (jsonl)
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
         await using var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.Read);
@@ -125,21 +125,21 @@ public sealed class SftDatasetExporter
 
     private static IEnumerable<(string q, string a)> BuildCanonQaVariants(CanonItemLite it)
     {
-        // ¡°³× Áö½ÄÀÌ ÀÏ¹İÁö½ÄÀÌ µÇ°Ô¡± ÇÏ·Á¸é °¡Àå ´Ü¼øÇÏ°í °­ÇÑ ¹æ½ÄÀº:
-        // - title Áß½É Áú¹® ¡æ body ´äº¯
-        // - ±ÔÄ¢/Á¤ÀÇ/¿øÄ¢ ÇÁ·ÒÇÁÆ®·Î body ´äº¯
+        // â€œë„¤ ì§€ì‹ì´ ì¼ë°˜ì§€ì‹ì´ ë˜ê²Œâ€ í•˜ë ¤ë©´ ê°€ì¥ ë‹¨ìˆœí•˜ê³  ê°•í•œ ë°©ì‹ì€:
+        // - title ì¤‘ì‹¬ ì§ˆë¬¸ â†’ body ë‹µë³€
+        // - ê·œì¹™/ì •ì˜/ì›ì¹™ í”„ë¡¬í”„íŠ¸ë¡œ body ë‹µë³€
         var title = it.title.Trim();
         var body = it.body.Trim();
 
-        var tags = it.tags is { Length: > 0 } ? $"(ÅÂ±×: {string.Join(", ", it.tags.Take(8))})" : "";
+        var tags = it.tags is { Length: > 0 } ? $"(íƒœê·¸: {string.Join(", ", it.tags.Take(8))})" : "";
 
-        yield return ($"{title}¿¡ ´ëÇØ ¼³¸íÇØÁà. {tags}".Trim(), body);
-        yield return ($"{title}ÀÇ ÇÙ½É ±ÔÄ¢/Á¤ÀÇ¸¦ °£´ÜÈ÷ Á¤¸®ÇØÁà. {tags}".Trim(), body);
+        yield return ($"{title}ì— ëŒ€í•´ ì„¤ëª…í•´ì¤˜. {tags}".Trim(), body);
+        yield return ($"{title}ì˜ í•µì‹¬ ê·œì¹™/ì •ì˜ë¥¼ ê°„ë‹¨íˆ ì •ë¦¬í•´ì¤˜. {tags}".Trim(), body);
 
-        // body°¡ ±æ¸é ¡°¿ä¾à¡± ÇüÅÂµµ Ãß°¡(ÇĞ½À ¾ÈÁ¤¼º)
+        // bodyê°€ ê¸¸ë©´ â€œìš”ì•½â€ í˜•íƒœë„ ì¶”ê°€(í•™ìŠµ ì•ˆì •ì„±)
         if (body.Length > 500)
         {
-            yield return ($"{title} ³»¿ëÀ» 5ÁÙ ÀÌ³»·Î ¿ä¾àÇØÁà. {tags}".Trim(), MakeShortSummary(body, 5));
+            yield return ($"{title} ë‚´ìš©ì„ 5ì¤„ ì´ë‚´ë¡œ ìš”ì•½í•´ì¤˜. {tags}".Trim(), MakeShortSummary(body, 5));
         }
     }
 
@@ -198,19 +198,19 @@ public sealed class SftDatasetExporter
 
     private static IEnumerable<(string q, string a)> BuildNoteStyleVariants(NoteLite it)
     {
-        // ³ëÆ® ÀÚÃ¼¸¦ ¡°ÁÁÀº ´äº¯ ÆĞÅÏ¡±À¸·Î ÇĞ½À½ÃÅ°´Â »ùÇÃ
-        // (»ç¿ëÀÚ°¡ ¡®»óÈ²/ÀÚ·á¡¯¸¦ ÁÖ¸é Jarvis°¡ °üÂû/¿¬°á/´ÙÀ½ Áú¹®À» ¸¸µå´Â ½ºÅ¸ÀÏ)
-        var context = $"Á¦¸ñ: {it.Title}\n³»¿ë:\n{it.Body}";
-        if (it.Tags.Length > 0) context += $"\nÅÂ±×: {string.Join(", ", it.Tags.Take(8))}";
-        if (it.Questions.Length > 0) context += $"\nÁú¹®: {string.Join(" | ", it.Questions.Take(5))}";
+        // ë…¸íŠ¸ ìì²´ë¥¼ â€œì¢‹ì€ ë‹µë³€ íŒ¨í„´â€ìœ¼ë¡œ í•™ìŠµì‹œí‚¤ëŠ” ìƒ˜í”Œ
+        // (ì‚¬ìš©ìê°€ â€˜ìƒí™©/ìë£Œâ€™ë¥¼ ì£¼ë©´ Jarvisê°€ ê´€ì°°/ì—°ê²°/ë‹¤ìŒ ì§ˆë¬¸ì„ ë§Œë“œëŠ” ìŠ¤íƒ€ì¼)
+        var context = $"ì œëª©: {it.Title}\në‚´ìš©:\n{it.Body}";
+        if (it.Tags.Length > 0) context += $"\níƒœê·¸: {string.Join(", ", it.Tags.Take(8))}";
+        if (it.Questions.Length > 0) context += $"\nì§ˆë¬¸: {string.Join(" | ", it.Questions.Take(5))}";
 
         yield return (
-            "¾Æ·¡ ±â·ÏÀ» ¹ÙÅÁÀ¸·Î °üÂûÀ» 3~6°³·Î Á¤¸®ÇØÁà.\n\n" + context,
+            "ì•„ë˜ ê¸°ë¡ì„ ë°”íƒ•ìœ¼ë¡œ ê´€ì°°ì„ 3~6ê°œë¡œ ì •ë¦¬í•´ì¤˜.\n\n" + context,
             BulletizeFromBody(it.Body, maxBullets: 6)
         );
 
         yield return (
-            "¾Æ·¡ ±â·Ï¿¡¼­ ´ÙÀ½¿¡ ÀÌ¾î°¥ Áú¹® 2~5°³¸¦ ¸¸µé¾îÁà.\n\n" + context,
+            "ì•„ë˜ ê¸°ë¡ì—ì„œ ë‹¤ìŒì— ì´ì–´ê°ˆ ì§ˆë¬¸ 2~5ê°œë¥¼ ë§Œë“¤ì–´ì¤˜.\n\n" + context,
             MakeQuestionsFromNote(it)
         );
     }
@@ -219,10 +219,10 @@ public sealed class SftDatasetExporter
 
     private string BuildSystemForTraining()
     {
-        // Æä¸£¼Ò³ªÀÇ ÇÙ½É(³Ê°¡ ÆÄÀÏ·Î °ü¸®ÇÏ´Â core)¸¸ ³Ö¾î ¡°Jarvis ½ºÅ¸ÀÏ¡±À» ÇĞ½À
-        // ³Ê¹« ±æ¸é ÇĞ½À È¿À² ¶³¾îÁ®¼­ core¸¦ Àû´çÈ÷ Âª°Ô À¯ÁöÇÏ´Â °É ÃßÃµ
+        // í˜ë¥´ì†Œë‚˜ì˜ í•µì‹¬(ë„ˆê°€ íŒŒì¼ë¡œ ê´€ë¦¬í•˜ëŠ” core)ë§Œ ë„£ì–´ â€œJarvis ìŠ¤íƒ€ì¼â€ì„ í•™ìŠµ
+        // ë„ˆë¬´ ê¸¸ë©´ í•™ìŠµ íš¨ìœ¨ ë–¨ì–´ì ¸ì„œ coreë¥¼ ì ë‹¹íˆ ì§§ê²Œ ìœ ì§€í•˜ëŠ” ê±¸ ì¶”ì²œ
         var core = _host.Persona.CoreText?.Trim() ?? "";
-        if (core.Length > 1200) core = core.Substring(0, 1200) + "¡¦";
+        if (core.Length > 1200) core = core.Substring(0, 1200) + "â€¦";
         return core;
     }
 
@@ -268,19 +268,19 @@ public sealed class SftDatasetExporter
 
     private static string MakeShortSummary(string body, int maxLines)
     {
-        // °£´Ü ¿ä¾à(ÇĞ½À µ¥ÀÌÅÍ »ı¼º¿ë): ¹®Àå ¸î °³¸¸ Àß¶ó¼­ ¶óÀÎÀ¸·Î
+        // ê°„ë‹¨ ìš”ì•½(í•™ìŠµ ë°ì´í„° ìƒì„±ìš©): ë¬¸ì¥ ëª‡ ê°œë§Œ ì˜ë¼ì„œ ë¼ì¸ìœ¼ë¡œ
         var sentences = body.Replace("\r", " ").Split('.', StringSplitOptions.RemoveEmptyEntries)
                             .Select(x => x.Trim())
                             .Where(x => x.Length > 0)
                             .Take(maxLines)
                             .ToList();
-        if (sentences.Count == 0) return body.Length <= 400 ? body : body.Substring(0, 400) + "¡¦";
+        if (sentences.Count == 0) return body.Length <= 400 ? body : body.Substring(0, 400) + "â€¦";
         return string.Join(". ", sentences) + ".";
     }
 
     private static string BulletizeFromBody(string body, int maxBullets)
     {
-        // ¾ÆÁÖ ´Ü¼øÇÑ bulletizer: ÁÙ/¹®Àå ±â¹İ
+        // ì•„ì£¼ ë‹¨ìˆœí•œ bulletizer: ì¤„/ë¬¸ì¥ ê¸°ë°˜
         var lines = body.Replace("\r", "")
                         .Split('\n', StringSplitOptions.RemoveEmptyEntries)
                         .Select(x => x.Trim())
@@ -293,8 +293,8 @@ public sealed class SftDatasetExporter
             return "- " + s.Replace("\n", "\n- ");
         }
 
-        // ³Ê¹« ±ä ÁÙÀº Àß¶ó¼­
-        var bullets = lines.Select(x => x.Length > 180 ? x.Substring(0, 180) + "¡¦" : x)
+        // ë„ˆë¬´ ê¸´ ì¤„ì€ ì˜ë¼ì„œ
+        var bullets = lines.Select(x => x.Length > 180 ? x.Substring(0, 180) + "â€¦" : x)
                            .Take(maxBullets)
                            .ToList();
 
@@ -306,13 +306,13 @@ public sealed class SftDatasetExporter
         if (it.Questions.Length > 0)
             return "- " + string.Join("\n- ", it.Questions.Take(5));
 
-        // Áú¹®ÀÌ ¾øÀ¸¸é º»¹®¿¡¼­ ¡®´ÙÀ½ Çàµ¿¡¯ Áú¹® ¸î °³ ÅÛÇÃ¸´ »ı¼º
-        var baseQ = it.Title.Length > 0 ? it.Title : "ÀÌ ±â·Ï";
+        // ì§ˆë¬¸ì´ ì—†ìœ¼ë©´ ë³¸ë¬¸ì—ì„œ â€˜ë‹¤ìŒ í–‰ë™â€™ ì§ˆë¬¸ ëª‡ ê°œ í…œí”Œë¦¿ ìƒì„±
+        var baseQ = it.Title.Length > 0 ? it.Title : "ì´ ê¸°ë¡";
         return "- " + string.Join("\n- ", new[]
         {
-            $"{baseQ}¿¡¼­ ´ÙÀ½¿¡ È®ÀÎÇØ¾ß ÇÒ »ç½ÇÀº ¹¹¾ß?",
-            $"{baseQ}À» ½ÇÇà °¡´ÉÇÑ ÀÛ¾÷À¸·Î ÂÉ°³¸é ¹«¾ùÀÌ ³²¾Æ?",
-            $"{baseQ}°ú °¡Àå Ãæµ¹ÇÒ ¼ö ÀÖ´Â °¡Á¤Àº ¹¹¾ß?"
+            $"{baseQ}ì—ì„œ ë‹¤ìŒì— í™•ì¸í•´ì•¼ í•  ì‚¬ì‹¤ì€ ë­ì•¼?",
+            $"{baseQ}ì„ ì‹¤í–‰ ê°€ëŠ¥í•œ ì‘ì—…ìœ¼ë¡œ ìª¼ê°œë©´ ë¬´ì—‡ì´ ë‚¨ì•„?",
+            $"{baseQ}ê³¼ ê°€ì¥ ì¶©ëŒí•  ìˆ˜ ìˆëŠ” ê°€ì •ì€ ë­ì•¼?"
         });
     }
 

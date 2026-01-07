@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -72,10 +72,10 @@ public sealed class VaultIndexManager
         try
         {
             if (!File.Exists(it.storedPath))
-                return VaultIndexEntry.Fail(it, "missing_file", "storedPath ÆÄÀÏÀÌ ¾ø½À´Ï´Ù.");
+                return VaultIndexEntry.Fail(it, "missing_file", "storedPath íŒŒì¼ì´ ì—†ìŠµë‹ˆë‹¤.");
 
             if (it.sizeBytes > MAX_BYTES_TO_INDEX)
-                return VaultIndexEntry.Skip(it, "too_large", $"ÆÄÀÏÀÌ ³Ê¹« Å®´Ï´Ù({it.sizeBytes} bytes).");
+                return VaultIndexEntry.Skip(it, "too_large", $"íŒŒì¼ì´ ë„ˆë¬´ í½ë‹ˆë‹¤({it.sizeBytes} bytes).");
 
             var ext = (it.ext ?? "").ToLowerInvariant();
 
@@ -93,7 +93,7 @@ public sealed class VaultIndexManager
                 return VaultIndexEntry.Ok(it, snippet, kind: "docx-lite");
             }
 
-            return VaultIndexEntry.Skip(it, "unsupported", $"ÀÎµ¦½Ì ¹ÌÁö¿ø È®ÀåÀÚ: {ext}");
+            return VaultIndexEntry.Skip(it, "unsupported", $"ì¸ë±ì‹± ë¯¸ì§€ì› í™•ì¥ì: {ext}");
         }
         catch (Exception ex)
         {
@@ -132,7 +132,7 @@ public sealed class VaultIndexManager
     {
         if (string.IsNullOrWhiteSpace(text)) return "";
         text = Regex.Replace(text, "\\s+", " ").Trim();
-        return text.Length <= maxChars ? text : text.Substring(0, maxChars) + "¡¦";
+        return text.Length <= maxChars ? text : text.Substring(0, maxChars) + "â€¦";
     }
 
     public IReadOnlyList<(string fileName, string shaShort, string snippet)> ReadRecentSnippets(int maxItems = 6, int maxSnippetChars = 450, int withinDays = 14)
@@ -164,7 +164,7 @@ public sealed class VaultIndexManager
 
                 if (string.IsNullOrWhiteSpace(snippet)) continue;
 
-                if (snippet.Length > maxSnippetChars) snippet = snippet.Substring(0, maxSnippetChars) + "¡¦";
+                if (snippet.Length > maxSnippetChars) snippet = snippet.Substring(0, maxSnippetChars) + "â€¦";
                 var shaShort = sha.Length >= 8 ? sha.Substring(0, 8) : sha;
 
                 list.Add((fileName, shaShort, snippet));
@@ -180,10 +180,10 @@ public sealed class VaultIndexManager
     public string BuildSnippetsBlockForPrompt(int maxItems = 6)
     {
         var snippets = ReadRecentSnippets(maxItems: maxItems);
-        if (snippets.Count == 0) return "(ÀÎµ¦½ÌµÈ ½º´ÏÆê ¾øÀ½)";
+        if (snippets.Count == 0) return "(ì¸ë±ì‹±ëœ ìŠ¤ë‹ˆí« ì—†ìŒ)";
 
         var sb = new StringBuilder();
-        sb.AppendLine("ÃÖ±Ù ÀÚ·á ½º´ÏÆê(¿ä¾à/°üÂû Àç·á):");
+        sb.AppendLine("ìµœê·¼ ìë£Œ ìŠ¤ë‹ˆí«(ìš”ì•½/ê´€ì°° ì¬ë£Œ):");
         foreach (var (fileName, shaShort, snippet) in snippets)
         {
             sb.AppendLine($"- [{shaShort}] {fileName}");

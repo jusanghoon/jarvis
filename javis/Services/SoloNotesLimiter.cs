@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace javis.Services;
@@ -27,5 +27,12 @@ public sealed class SoloNotesLimiter
         var now = DateTimeOffset.Now;
         _lastWrite = now;
         _writes.Enqueue(now);
+    }
+
+    public bool TryAcquire()
+    {
+        if (!CanWriteNow()) return false;
+        MarkWrote();
+        return true;
     }
 }

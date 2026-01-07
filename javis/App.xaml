@@ -4,6 +4,27 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
 
+        <!-- Global font fallback (Korean + emoji) -->
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Malgun Gothic, Segoe UI, Segoe UI Emoji"/>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="FontFamily" Value="Malgun Gothic, Segoe UI, Segoe UI Emoji"/>
+        </Style>
+
+        <Style TargetType="Label">
+            <Setter Property="FontFamily" Value="Malgun Gothic, Segoe UI, Segoe UI Emoji"/>
+        </Style>
+
+        <Style TargetType="ContentControl">
+            <Setter Property="FontFamily" Value="Malgun Gothic, Segoe UI, Segoe UI Emoji"/>
+        </Style>
+
+        <Style TargetType="Control">
+            <Setter Property="FontFamily" Value="Malgun Gothic, Segoe UI, Segoe UI Emoji"/>
+        </Style>
+
         <!-- 공통 컬러 -->
         <SolidColorBrush x:Key="TextPrimary" Color="#EAF6FF"/>
         <SolidColorBrush x:Key="TextMuted" Color="#A8C7D9"/>

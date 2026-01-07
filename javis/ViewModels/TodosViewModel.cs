@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -52,7 +52,7 @@ public partial class TodosViewModel : ObservableObject
         var title = (NewTitle ?? "").Trim();
         if (string.IsNullOrWhiteSpace(title))
         {
-            Status = "Á¦¸ñÀÌ ºñ¾îÀÖ½À´Ï´Ù";
+            Status = "ì œëª©ì´ ë¹„ì–´ìˆìŠµë‹ˆë‹¤";
             return;
         }
 
@@ -64,7 +64,7 @@ public partial class TodosViewModel : ObservableObject
                 time = ts;
             else
             {
-                Status = "½Ã°£ Çü½ÄÀº HH:mm (¿¹: 09:30) ÀÔ´Ï´Ù.";
+                Status = "ì‹œê°„ í˜•ì‹ì€ HH:mm (ì˜ˆ: 09:30) ì…ë‹ˆë‹¤.";
                 return;
             }
         }
@@ -81,7 +81,7 @@ public partial class TodosViewModel : ObservableObject
         NewTitle = "";
         NewTime = "";
         Refresh();
-        Status = "Ãß°¡°¡ ¿Ï·áµÇ¾ú½À´Ï´Ù.";
+        Status = "ì¶”ê°€ê°€ ì™„ë£Œë˜ì—ˆìŠµë‹ˆë‹¤.";
     }
 
     [RelayCommand]
@@ -97,6 +97,6 @@ public partial class TodosViewModel : ObservableObject
     {
         _store.Delete(item.Id);
         Refresh();
-        Status = "»èÁ¦°¡ ¿Ï·áµÇ¾ú½À´Ï´Ù.";
+        Status = "ì‚­ì œê°€ ì™„ë£Œë˜ì—ˆìŠµë‹ˆë‹¤.";
     }
 }

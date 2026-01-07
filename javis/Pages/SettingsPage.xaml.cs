@@ -1,3 +1,4 @@
+﻿using System.Windows;
 using System.Windows.Controls;
 using javis.Services;
 
@@ -9,5 +10,20 @@ public partial class SettingsPage : Page
     {
         InitializeComponent();
         DataContext = RuntimeSettings.Instance;
+
+        // ensure profiles service initializes
+        _ = UserProfileService.Instance;
+    }
+
+    private void UserSelect_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            NavigationService?.Navigate(new UserSelectPage());
+        }
+        catch
+        {
+            // ignore
+        }
     }
 }

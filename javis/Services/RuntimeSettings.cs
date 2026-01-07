@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace javis.Services;
 
@@ -9,5 +9,5 @@ public sealed partial class RuntimeSettings : ObservableObject
     private RuntimeSettings() { }
 
     [ObservableProperty]
-    private string _model = "qwen3:4b";
+    private string _model = "gemma3:1b";
 }

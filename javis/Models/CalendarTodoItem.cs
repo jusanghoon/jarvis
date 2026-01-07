@@ -1,4 +1,4 @@
-namespace javis.Models;
+﻿namespace javis.Models;
 
 public sealed class CalendarTodoItem
 {

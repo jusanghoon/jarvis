@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -38,7 +38,7 @@ public sealed class SkillRuntime
 
         // No UI prompt system in this runtime; fail fast with a clear message.
         if (string.IsNullOrWhiteSpace(prompt))
-            prompt = !string.IsNullOrWhiteSpace(varName) ? $"°ª ÀÔ·Â ÇÊ¿ä: {varName}" : "°ª ÀÔ·Â ÇÊ¿ä";
+            prompt = !string.IsNullOrWhiteSpace(varName) ? $"ê°’ ìž…ë ¥ í•„ìš”: {varName}" : "ê°’ ìž…ë ¥ í•„ìš”";
 
         // If no prefilled var is available, return a message so the user can supply vars.
         return $"(ask) {prompt}";

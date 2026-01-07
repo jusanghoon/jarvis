@@ -1,0 +1,56 @@
+﻿<Window x:Class="javis.UI.Dialogs.FossilDetailWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Fossil Detail"
+        Height="560"
+        Width="820"
+        WindowStartupLocation="CenterOwner"
+        Background="#111315"
+        Foreground="#EAF6FF">
+
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" CornerRadius="12" Background="#22000000" BorderBrush="#33BFE9FF" BorderThickness="1" Padding="12">
+            <StackPanel>
+                <TextBlock Text="Fossil" FontSize="16" FontWeight="SemiBold"/>
+                <DockPanel Margin="0,6,0,0" LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Left" Opacity="0.85" Text="Time:"/>
+                    <TextBlock Margin="8,0,0,0" Opacity="0.85" Text="{Binding Ts, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}"/>
+
+                    <TextBlock DockPanel.Dock="Right" Opacity="0.85" Text="{Binding SourceCount, StringFormat=Sources: {0}}"/>
+                </DockPanel>
+
+                <TextBlock Margin="0,6,0,0" Opacity="0.75" Text="{Binding SourceIdsHash, StringFormat=sourceIdsHash: {0}}"/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1" Margin="0,12,0,12" CornerRadius="12" Background="#22000000" BorderBrush="#22FFFFFF" BorderThickness="1" Padding="12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <TextBox Name="ContentBox"
+                         Text="{Binding Content}"
+                         IsReadOnly="True"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         Foreground="#EAF6FF"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Disabled"/>
+            </ScrollViewer>
+        </Border>
+
+        <DockPanel Grid.Row="2" LastChildFill="False">
+            <TextBlock DockPanel.Dock="Left" Opacity="0.6" VerticalAlignment="Center" Text="Copy: Ctrl+C"/>
+
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Padding="12,6" Margin="0,0,10,0" Click="SelectAll_Click">Select all</Button>
+                <Button Padding="12,6" Margin="0,0,10,0" Click="Copy_Click">Copy</Button>
+                <Button Padding="12,6" IsCancel="True">Close</Button>
+            </StackPanel>
+        </DockPanel>
+    </Grid>
+</Window>

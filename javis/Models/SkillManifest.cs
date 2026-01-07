@@ -1,4 +1,4 @@
-using System.Text.Json;
+ï»¿using System.Text.Json;
 
 namespace javis.Models;
 
@@ -11,10 +11,10 @@ public sealed class SkillManifest
     // "prompt" | "powershell" | "action"
     public string Type { get; set; } = "prompt";
 
-    // prompt Å¸ÀÔÀÏ ¶§, Chat¿¡ º¸³¾ ¹®Àå
+    // prompt íƒ€ì…ì¼ ë•Œ, Chatì— ë³´ë‚¼ ë¬¸ì¥
     public string? Prompt { get; set; }
 
-    // powershell Å¸ÀÔÀÏ ¶§ ½ÇÇàÇÒ ÆÄÀÏ¸í(¿¹: "handler.ps1")
+    // powershell íƒ€ì…ì¼ ë•Œ ì‹¤í–‰í•  íŒŒì¼ëª…(ì˜ˆ: "handler.ps1")
     public string? Entry { get; set; }
 
     public bool RequiresConfirmation { get; set; } = false;

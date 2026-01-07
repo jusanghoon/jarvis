@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using javis.Models;
 using javis.Services;
+using Jarvis.Core.Archive;
 using static javis.Services.OllamaChatService;
 
 namespace javis.ViewModels;
@@ -35,15 +36,15 @@ public partial class ChatViewModel : ObservableObject
 
         _history.Add(new OllamaMessage("system",
             """
-            ³Ê´Â °³ÀÎºñ¼­ JARVISÃ³·³ Çàµ¿ÇÏ´Â ÇÑ±¹¾î AI ºñ¼­´Ù.
-            - Åæ: Âª°í ´ÜÈ£ÇÏ°Ô. ¾à°£ ½º¸¶Æ®½ÃÅ©ÇÑ ´À³¦.
-            - »ç¿ëÀÚ°¡ ¿äÃ»ÇÏ¸é ´Ü°èº°·Î °£´Ü °èÈ¹À» Á¦½ÃÇÏ°í, ÇÊ¿äÇÑ Á¤º¸¸¦ ¹¯´Â´Ù.
+            ë„ˆëŠ” ê°œì¸ë¹„ì„œ JARVISì²˜ëŸ¼ í–‰ë™í•˜ëŠ” í•œêµ­ì–´ AI ë¹„ì„œë‹¤.
+            - í†¤: ì§§ê³  ë‹¨í˜¸í•˜ê²Œ. ì•½ê°„ ìŠ¤ë§ˆíŠ¸ì‹œí¬í•œ ëŠë‚Œ.
+            - ì‚¬ìš©ìê°€ ìš”ì²­í•˜ë©´ ë‹¨ê³„ë³„ë¡œ ê°„ë‹¨ ê³„íšì„ ì œì‹œí•˜ê³ , í•„ìš”í•œ ì •ë³´ë¥¼ ë¬»ëŠ”ë‹¤.
 
-            [³¯Â¥/½Ã°£ ±ÔÄ¢]
-            - ÇöÀç ½Ã°£(Asia/Seoul, KST)Àº ¸Å ¿äÃ»¸¶´Ù system ¸Ş½ÃÁö·Î ÁÖ¾îÁø´Ù.
-            - '¿À´Ã/³»ÀÏ/¸ğ·¹/ÀÌ¹ø ÁÖ/´ÙÀ½ ÁÖ/´Ù´ÙÀ½ ÁÖ/ÀÌ¹ø ´Ş/´ÙÀ½ ´Ş' °°Àº Ç¥ÇöÀº ¸ğµÎ KST ±âÁØÀ¸·Î ÇØ¼®ÇÏ¶ó.
-            - ´äº¯¿¡ ³¯Â¥°¡ Æ÷ÇÔµÇ¸é Ç×»ó ³¯Â¥(YYYY-MM-DD)¸¦ ÇÔ²² Ç¥±âÇÏ¶ó.
-            - ¸ğÈ£ÇÏ¸é(¿¹: '´ÙÀ½ ÁÖ ±İ¿äÀÏ') È®ÀÎ Áú¹®À» ÇÏ¶ó.
+            [ë‚ ì§œ/ì‹œê°„ ê·œì¹™]
+            - í˜„ì¬ ì‹œê°„(Asia/Seoul, KST)ì€ ë§¤ ìš”ì²­ë§ˆë‹¤ system ë©”ì‹œì§€ë¡œ ì£¼ì–´ì§„ë‹¤.
+            - 'ì˜¤ëŠ˜/ë‚´ì¼/ëª¨ë ˆ/ì´ë²ˆ ì£¼/ë‹¤ìŒ ì£¼/ë‹¤ë‹¤ìŒ ì£¼/ì´ë²ˆ ë‹¬/ë‹¤ìŒ ë‹¬' ê°™ì€ í‘œí˜„ì€ ëª¨ë‘ KST ê¸°ì¤€ìœ¼ë¡œ í•´ì„í•˜ë¼.
+            - ë‹µë³€ì— ë‚ ì§œê°€ í¬í•¨ë˜ë©´ í•­ìƒ ë‚ ì§œ(YYYY-MM-DD)ë¥¼ í•¨ê»˜ í‘œê¸°í•˜ë¼.
+            - ëª¨í˜¸í•˜ë©´(ì˜ˆ: 'ë‹¤ìŒ ì£¼ ê¸ˆìš”ì¼') í™•ì¸ ì§ˆë¬¸ì„ í•˜ë¼.
             """));
 
         StatusText = $"READY / {Settings.Model}";
@@ -53,10 +54,44 @@ public partial class ChatViewModel : ObservableObject
                 StatusText = $"READY / {Settings.Model}";
         };
 
-        Messages.Add(new ChatMessage("assistant", "¿Â¶óÀÎ. ¹«¾ùÀ» µµ¿ÍÁÙ±î?"));
+        MainMessages.Add(new ChatMessage("assistant", "ì˜¨ë¼ì¸. ë¬´ì—‡ì„ ë„ì™€ì¤„ê¹Œ?"));
     }
 
-    public ObservableCollection<ChatMessage> Messages { get; } = new();
+    public ObservableCollection<ChatMessage> MainMessages { get; } = new();
+    public ObservableCollection<ChatMessage> SoloMessages { get; } = new();
+    public ObservableCollection<ChatMessage> DuoMessages { get; } = new();
+
+    // Back-compat: existing code that references Messages will still target the main room.
+    public ObservableCollection<ChatMessage> Messages => MainMessages;
+
+    private ChatRoom _selectedRoom = ChatRoom.Main;
+    public ChatRoom SelectedRoom
+    {
+        get => _selectedRoom;
+        set
+        {
+            if (_selectedRoom == value) return;
+            _selectedRoom = value;
+            OnPropertyChanged(nameof(SelectedRoom));
+            OnPropertyChanged(nameof(MessagesView));
+        }
+    }
+
+    public ObservableCollection<ChatMessage> MessagesView =>
+        _selectedRoom switch
+        {
+            ChatRoom.Solo => SoloMessages,
+            ChatRoom.Duo => DuoMessages,
+            _ => MainMessages,
+        };
+
+    public ObservableCollection<ChatMessage> GetRoom(ChatRoom room) =>
+        room switch
+        {
+            ChatRoom.Solo => SoloMessages,
+            ChatRoom.Duo => DuoMessages,
+            _ => MainMessages,
+        };
 
     public Dictionary<string, string> ContextVars { get; } =
         new(StringComparer.OrdinalIgnoreCase)
@@ -80,12 +115,19 @@ public partial class ChatViewModel : ObservableObject
         return now.ToString("yyyy-MM-dd (ddd) HH:mm:ss 'KST'", CultureInfo.InvariantCulture);
     }
 
+    private static DateTime TodayKstDate()
+    {
+        var tz = TimeZoneInfo.FindSystemTimeZoneById("Korea Standard Time");
+        var now = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, tz);
+        return now.Date;
+    }
+
     private string BuildUpcomingTodoContext()
     {
-        var now = DateTime.Today;
+        var now = TodayKstDate();
         var items = _calendarStore.GetUpcoming(now, 14);
 
-        if (items.Count == 0) return "ÇâÈÄ 14ÀÏ°£ µî·ÏµÈ ÇÒ ÀÏÀÌ ¾ø´Ù.";
+        if (items.Count == 0) return "í–¥í›„ 14ì¼ê°„ ë“±ë¡ëœ í•  ì¼ì´ ì—†ë‹¤.";
 
         var lines = new List<string>();
         DateTime? cur = null;
@@ -103,7 +145,7 @@ public partial class ChatViewModel : ObservableObject
             lines.Add($"- {done} {time}{it.Title}");
         }
 
-        return "´ÙÀ½Àº »ç¿ëÀÚÀÇ ´Ş·Â ÇÒ ÀÏ(¾ÕÀ¸·Î 14ÀÏ)ÀÌ´Ù:" + string.Join("", lines);
+        return "ë‹¤ìŒì€ ì‚¬ìš©ìì˜ ë‹¬ë ¥ í•  ì¼(ì•ìœ¼ë¡œ 14ì¼)ì´ë‹¤:" + string.Join("", lines);
     }
 
     public async Task SendExternalAsync(string text)
@@ -114,11 +156,58 @@ public partial class ChatViewModel : ObservableObject
         await SendAsync();
     }
 
+    [ObservableProperty]
+    private string _topic = "";
+
+    [ObservableProperty]
+    private bool _topicLocked;
+
+    public bool SetTopicOnce(string? topic)
+    {
+        if (TopicLocked) return false;
+
+        var t = (topic ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(t)) return false;
+
+        Topic = t;
+        TopicLocked = true;
+        return true;
+    }
+
     [RelayCommand(CanExecute = nameof(CanSend))]
     public async Task SendAsync()
     {
         var text = InputText?.Trim();
         if (string.IsNullOrWhiteSpace(text)) return;
+
+        try
+        {
+            javis.Services.MainAi.MainAiEventBus.Publish(new javis.Services.MainAi.ChatRequestStarted(DateTimeOffset.Now));
+            javis.Services.MainAi.MainAiEventBus.Publish(new javis.Services.MainAi.ChatUserMessageObserved(DateTimeOffset.Now, text));
+        }
+        catch { }
+
+        var kernel = javis.App.Kernel;
+        var sessionId = kernel?.Logger?.SessionId;
+
+        var opId = Guid.NewGuid().ToString("N");
+        var swOp = System.Diagnostics.Stopwatch.StartNew();
+
+        try
+        {
+            kernel?.Archive.Record(
+                content: text,
+                role: GEMSRole.Connectors,
+                state: KnowledgeState.Active,
+                sessionId: sessionId,
+                meta: new Dictionary<string, object?>
+                {
+                    ["kind"] = "chat.send.start",
+                    ["opId"] = opId,
+                    ["len"] = text.Length
+                });
+        }
+        catch { }
 
         // keep shared context up to date
         ContextVars["user_action"] = text;
@@ -139,14 +228,14 @@ public partial class ChatViewModel : ObservableObject
 
         InputText = "";
 
-        Messages.Add(new ChatMessage("user", text));
+        MainMessages.Add(new ChatMessage("user", text));
         ScrollToEndRequested?.Invoke();
 
         _history.Add(new OllamaMessage("user", text));
 
         const string CURSOR = "|";
         var assistantMsg = new ChatMessage("assistant", CURSOR);
-        Messages.Add(assistantMsg);
+        MainMessages.Add(assistantMsg);
         ScrollToEndRequested?.Invoke();
 
         var q = new ConcurrentQueue<string>();
@@ -216,8 +305,19 @@ public partial class ChatViewModel : ObservableObject
             context.Add(_history[0]);
 
             context.Add(new OllamaMessage("system",
-                $"[ÇöÀç ½Ã°£ / timezone] Asia/Seoul: {NowKst()}\n" +
-                "»ç¿ëÀÚ ³¯Â¥ Ç¥Çö(¿À´Ã/³»ÀÏ/´ÙÀ½ÁÖ µî)Àº À§ ½Ã°£ ±âÁØÀ¸·Î ÇØ¼®ÇÏ°í, ´äº¯Àº YYYY-MM-DD¸¦ Æ÷ÇÔÇØ¶ó."));
+                $"[í˜„ì¬ ì‹œê°„ / timezone] Asia/Seoul: {NowKst()}\n" +
+                "ì‚¬ìš©ì ë‚ ì§œ í‘œí˜„(ì˜¤ëŠ˜/ë‚´ì¼/ë‹¤ìŒì£¼ ë“±)ì€ ìœ„ ì‹œê°„ ê¸°ì¤€ìœ¼ë¡œ í•´ì„í•˜ê³ , ë‹µë³€ì€ YYYY-MM-DDë¥¼ í¬í•¨í•´ë¼."));
+
+            if (TopicLocked && !string.IsNullOrWhiteSpace(Topic))
+            {
+                context.Add(new OllamaMessage("system",
+                    "[ì£¼ì œ ê³ ì • ëª¨ë“œ]\n" +
+                    $"- í˜„ì¬ ëŒ€í™” ì£¼ì œ: {Topic}\n" +
+                    "- ì‚¬ìš©ìì˜ ìš”ì²­ì´ ì£¼ì œì—ì„œ ë²—ì–´ë‚˜ë©´, 'ì£¼ì œì—ì„œ ë²—ì–´ë‚¬ì–´'ë¼ê³  ì§§ê²Œ ì•Œë ¤ì£¼ê³ \n" +
+                    "  (1) ì™œ ë²—ì–´ë‚¬ëŠ”ì§€ 1ì¤„\n" +
+                    "  (2) ì£¼ì œ ì•ˆì—ì„œ ê³„ì†í•  ìˆ˜ ìˆëŠ” ë‹¤ìŒ ë°©í–¥ 2~3ê°œë¥¼ ì œì‹œí•´ë¼.\n" +
+                    "- ì£¼ì œ ë°–ì˜ ì§ˆë¬¸ì—ëŠ” ë°”ë¡œ ë‹µí•˜ì§€ ë§ê³ , ì£¼ì œ ì•ˆìœ¼ë¡œ ìœ ë„í•´ë¼."));
+            }
 
             // persona (core + chat overlay)
             try
@@ -242,8 +342,8 @@ public partial class ChatViewModel : ObservableObject
             catch { }
 
             context.Add(new OllamaMessage("system",
-                "[´Ş·Â ÇÒ ÀÏ Âü°í]\n" + BuildUpcomingTodoContext() +
-                "\n¿äÃ»À» Ã³¸®ÇÒ ¶§ À§ ÇÒ ÀÏÀ» ¿ì¼± Âü°íÇÏ°í, ÀÏÁ¤/³¯Â¥ Áú¹®¿¡´Â Ç×»ó YYYY-MM-DD·Î ´äÇØ¶ó."));
+                "[ë‹¬ë ¥ í•  ì¼ ì°¸ê³ ]\n" + BuildUpcomingTodoContext() +
+                "\nìš”ì²­ì„ ì²˜ë¦¬í•  ë•Œ ìœ„ í•  ì¼ì„ ìš°ì„  ì°¸ê³ í•˜ê³ , ì¼ì •/ë‚ ì§œ ì§ˆë¬¸ì—ëŠ” í•­ìƒ YYYY-MM-DDë¡œ ë‹µí•´ë¼."));
 
             context.AddRange(_history.Where(m => m.Role != "system").TakeLast(20));
 
@@ -278,11 +378,47 @@ public partial class ChatViewModel : ObservableObject
                 javis.App.Kernel?.Logger?.LogText("chat.assistant", assistantMsg.Text ?? "");
             }
             catch { }
+
+            swOp.Stop();
+            try
+            {
+                kernel?.Archive.Record(
+                    content: assistantMsg.Text ?? "",
+                    role: GEMSRole.Logician,
+                    state: KnowledgeState.Active,
+                    sessionId: sessionId,
+                    meta: new Dictionary<string, object?>
+                    {
+                        ["kind"] = "chat.send.end",
+                        ["opId"] = opId,
+                        ["ms"] = swOp.ElapsedMilliseconds,
+                        ["outLen"] = (assistantMsg.Text ?? "").Length
+                    });
+            }
+            catch { }
         }
         catch (OperationCanceledException)
         {
             Interlocked.Exchange(ref streamDone, 1);
             StatusText = "CANCELED";
+
+            swOp.Stop();
+            try
+            {
+                kernel?.Archive.Record(
+                    content: "CANCELED",
+                    role: GEMSRole.Logician,
+                    state: KnowledgeState.Active,
+                    sessionId: sessionId,
+                    meta: new Dictionary<string, object?>
+                    {
+                        ["kind"] = "chat.send.end",
+                        ["opId"] = opId,
+                        ["ms"] = swOp.ElapsedMilliseconds,
+                        ["canceled"] = true
+                    });
+            }
+            catch { }
 
             try { javis.App.Kernel?.Logger?.Log("llm.canceled", new { model = Settings.Model }); } catch { }
         }
@@ -294,10 +430,30 @@ public partial class ChatViewModel : ObservableObject
             StatusText = "ERROR";
             await doneTcs.Task;
 
+            swOp.Stop();
+            try
+            {
+                kernel?.Archive.Record(
+                    content: $"CRACK_DETECTED: {ex.GetType().Name}: {ex.Message}\nCTX: SendAsync opId={opId} ms={swOp.ElapsedMilliseconds}",
+                    role: GEMSRole.Logician,
+                    state: KnowledgeState.Active,
+                    sessionId: sessionId,
+                    meta: new Dictionary<string, object?>
+                    {
+                        ["kind"] = "crack",
+                        ["where"] = "ChatViewModel.SendAsync",
+                        ["opId"] = opId,
+                        ["ms"] = swOp.ElapsedMilliseconds
+                    });
+            }
+            catch { }
+
             try { javis.App.Kernel?.Logger?.Log("llm.error", new { error = ex.Message, stack = ex.ToString() }); } catch { }
         }
         finally
         {
+            try { javis.Services.MainAi.MainAiEventBus.Publish(new javis.Services.MainAi.ChatRequestEnded(DateTimeOffset.Now)); } catch { }
+
             IsBusy = false;
             SendCommand.NotifyCanExecuteChanged();
             CancelCommand.NotifyCanExecuteChanged();

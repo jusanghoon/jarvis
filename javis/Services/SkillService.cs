@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -116,10 +116,10 @@ public sealed class SkillService : IDisposable
         var sample = new SkillManifest
         {
             Id = "hello",
-            Name = "ÀÎ»çÇÏ±â",
-            Description = "ÀÚºñ½º¿¡°Ô ÀÎ»ç ÇÁ·ÒÇÁÆ®¸¦ º¸³À´Ï´Ù",
+            Name = "ì¸ì‚¬í•˜ê¸°",
+            Description = "ìë¹„ìŠ¤ì—ê²Œ ì¸ì‚¬ í”„ë¡¬í”„íŠ¸ë¥¼ ë³´ëƒ…ë‹ˆë‹¤",
             Type = "prompt",
-            Prompt = "¾È³ç ÀÚºñ½º. ¿À´Ã ÀÏÁ¤°ú ÇÒ ÀÏÀ» 3ÁÙ·Î ¿ä¾àÇØÁà."
+            Prompt = "ì•ˆë…• ìë¹„ìŠ¤. ì˜¤ëŠ˜ ì¼ì •ê³¼ í•  ì¼ì„ 3ì¤„ë¡œ ìš”ì•½í•´ì¤˜."
         };
 
         File.WriteAllText(manifestPath, JsonSerializer.Serialize(sample, new JsonSerializerOptions { WriteIndented = true }));

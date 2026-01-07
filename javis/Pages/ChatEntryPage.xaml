@@ -1,0 +1,26 @@
+﻿<Page x:Class="javis.Pages.ChatEntryPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      Background="Transparent"
+      Title="ChatEntry">
+
+    <Grid Margin="24">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="420">
+            <StackPanel.Resources>
+                <Style TargetType="Button">
+                    <Setter Property="Height" Value="56"/>
+                    <Setter Property="FontSize" Value="18"/>
+                    <Setter Property="Padding" Value="16,10"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                </Style>
+            </StackPanel.Resources>
+
+            <Button Content="1. 자비스와 채팅하기" Click="MainChat_Click"/>
+            <Button Content="2. 자비스 혼자 생각하기" Margin="0,14,0,0" Click="SoloThink_Click"/>
+            <Button Content="3. 자비스와 친구끼리 토론하기" Margin="0,14,0,0" Click="DuoDebate_Click"/>
+        </StackPanel>
+    </Grid>
+</Page>

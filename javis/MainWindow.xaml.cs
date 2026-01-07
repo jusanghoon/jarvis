@@ -12,7 +12,7 @@ namespace javis
     public partial class MainWindow : Window
     {
         private readonly HomePage _homePage = new();
-        private readonly ChatPage _chatPage = new();
+        private readonly ChatEntryPage _chatPage = new();
         private readonly TodosPage _todosPage = new();
         private readonly Pages.SkillsPage _skillsPage = new();
         private readonly SettingsPage _settingsPage = new();

@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -32,7 +32,7 @@ public sealed class KnowledgeCanon
 
         var id = "k_" + Sha1Hex(title + "\n" + body).Substring(0, 12);
 
-        // Áßº¹ ¹æÁö(°¡º­¿î ¹æ½Ä): ÆÄÀÏ¿¡ µ¿ÀÏ id ÀÖÀ¸¸é ½ºÅµ
+        // ì¤‘ë³µ ë°©ì§€(ê°€ë²¼ìš´ ë°©ì‹): íŒŒì¼ì— ë™ì¼ id ìžˆìœ¼ë©´ ìŠ¤í‚µ
         if (Exists(id)) return;
 
         var item = new CanonItem(
@@ -51,10 +51,10 @@ public sealed class KnowledgeCanon
     public string BuildPromptBlock(string query, int maxItems = 6)
     {
         var items = Retrieve(query, maxItems);
-        if (items.Count == 0) return "(Ä³³í Áö½Ä ¾øÀ½)";
+        if (items.Count == 0) return "(ìºë…¼ ì§€ì‹ ì—†ìŒ)";
 
         var sb = new StringBuilder();
-        sb.AppendLine("ÀÚºñ½º Ä³³í Áö½Ä(Á¤º»):");
+        sb.AppendLine("ìžë¹„ìŠ¤ ìºë…¼ ì§€ì‹(ì •ë³¸):");
         foreach (var it in items)
         {
             sb.AppendLine($"- [{it.id}] {it.title}");
@@ -90,11 +90,11 @@ public sealed class KnowledgeCanon
 
         if (all.Count == 0) return new();
 
-        // query ¾øÀ¸¸é ÃÖ±Ù °Í À§ÁÖ
+        // query ì—†ìœ¼ë©´ ìµœê·¼ ê²ƒ ìœ„ì£¼
         if (tokens.Length == 0)
             return all.TakeLast(maxItems).ToList();
 
-        // °£´Ü ½ºÄÚ¾î¸µ °Ë»ö
+        // ê°„ë‹¨ ìŠ¤ì½”ì–´ë§ ê²€ìƒ‰
         var scored = all.Select(it => (it, score: Score(it, tokens)))
                         .Where(x => x.score > 0)
                         .OrderByDescending(x => x.score)
@@ -102,7 +102,7 @@ public sealed class KnowledgeCanon
                         .Select(x => x.it)
                         .ToList();
 
-        // ºÎÁ·ÇÏ¸é ÃÖ±ÙÀ¸·Î Ã¤¿ì±â
+        // ë¶€ì¡±í•˜ë©´ ìµœê·¼ìœ¼ë¡œ ì±„ìš°ê¸°
         if (scored.Count < maxItems)
         {
             foreach (var it in all.AsEnumerable().Reverse())
@@ -144,7 +144,7 @@ public sealed class KnowledgeCanon
     private static string TrimMax(string s, int max)
     {
         s = (s ?? "").Trim();
-        return s.Length <= max ? s : s.Substring(0, max) + "¡¦";
+        return s.Length <= max ? s : s.Substring(0, max) + "â€¦";
     }
 }
 

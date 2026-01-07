@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -93,7 +93,7 @@ public sealed class PluginManager
         if (!emit.Success)
         {
             var errors = string.Join("\n", emit.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
-            throw new Exception($"ÄÄÆÄÀÏ ½ÇÆĞ:\n{errors}");
+            throw new Exception($"ì»´íŒŒì¼ ì‹¤íŒ¨:\n{errors}");
         }
 
         ms.Position = 0;

@@ -1,0 +1,892 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Threading;
+using Microsoft.Win32;
+using javis.Services;
+using javis.ViewModels;
+using Jarvis.Core.Archive;
+
+namespace javis.Pages;
+
+public partial class ChatPage : Page
+{
+    private readonly ChatViewModel _vm = new();
+
+    private CancellationTokenSource? _soloCts;
+    private Task? _soloTask;
+
+    private int _soloLastSeenMsgIndex = 0;
+    private string? _soloLastNoteSig;
+
+    private readonly Queue<string> _soloRecentTracks = new();
+    private DateTimeOffset _soloLastNoteAt = DateTimeOffset.MinValue;
+    private DateTimeOffset _soloLastMaintainAt = DateTimeOffset.MinValue;
+    private DateTimeOffset _soloLastImproveAt = DateTimeOffset.MinValue;
+
+    private int _soloGreetingStreak = 0;
+
+    private int _soloCreateCount = 0;
+    private DateTimeOffset _soloLastCreateAt = DateTimeOffset.MinValue;
+
+    // FreePlay improve(ÀÚµ¿È­) Á¦¾î
+    private DateTimeOffset _freePlayLastImproveAt = DateTimeOffset.MinValue;
+    private static readonly TimeSpan FreePlayImproveMinInterval = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan FreePlayMinInterval = TimeSpan.FromSeconds(45);
+
+    // create_skill Á¦ÇÑ(¼¼¼Ç/Äð´Ù¿î)
+    private static readonly TimeSpan CreateCooldown = TimeSpan.FromMinutes(30);
+    private const int MAX_CREATES_PER_SESSION = 4;
+
+    private PluginHost Host => PluginHost.Instance;
+    private OllamaClient Llm { get; } = new("http://localhost:11434", "qwen3:4b");
+
+    // SOLO loop protections
+    private string? _soloLastReply;
+    private int _soloSameReplyCount;
+    private int _soloRepeatExitCount;
+
+    private void AppendAssistant(string text)
+    {
+        ChatBus.Send(text);
+    }
+
+    private void AppendSoloAssistant(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+        ChatBus.Send("??? " + text);
+    }
+
+    private void SetSoloStatus(string text)
+        => _ = UiAsync(() =>
+        {
+            if (SoloStatusText == null) return;
+            SoloStatusText.Text = text ?? "";
+        });
+
+    private void AddJarvisMessage(string text)
+    {
+        ChatBus.Send(text);
+    }
+
+    public ChatPage()
+    {
+        InitializeComponent();
+        DataContext = _vm;
+
+        _vm.ScrollToEndRequested += ScrollToEnd;
+
+        Loaded += ChatPage_Loaded;
+        Unloaded += ChatPage_Unloaded;
+    }
+
+    private void ChatPage_Loaded(object sender, RoutedEventArgs e)
+    {
+        InputBox.Focus();
+
+        ChatBus.MessageQueued += OnBusMessage;
+
+        while (ChatBus.TryDequeue(out var t))
+            _ = _vm.SendExternalAsync(t);
+    }
+
+    private void ChatPage_Unloaded(object sender, RoutedEventArgs e)
+    {
+        ChatBus.MessageQueued -= OnBusMessage;
+    }
+
+    private void OnBusMessage(string text)
+    {
+        Dispatcher.InvokeAsync(async () =>
+        {
+            await _vm.SendExternalAsync(text);
+        });
+    }
+
+    private enum SoloTopicMode { FreePlay, FollowLastTopic }
+
+    private SoloTopicMode _soloTopicMode = SoloTopicMode.FreePlay;
+    private string _soloTopicSeed = "";
+    private DateTimeOffset _soloTopicSeedAt = DateTimeOffset.MinValue;
+
+    private void BeginSoloTopicMode()
+    {
+        var vm = (ChatViewModel)DataContext;
+        var seed = BuildLastTopicSeed(vm);
+
+        if (string.IsNullOrWhiteSpace(seed))
+        {
+            _soloTopicMode = SoloTopicMode.FreePlay;
+            _soloTopicSeed = "";
+            _soloTopicSeedAt = DateTimeOffset.Now;
+            vm.Messages.Add(new javis.Models.ChatMessage("assistant", "?? SOLO ½ÃÀÛ: ÀÚÀ¯ ¸ðµå(´ëÈ­ È÷½ºÅä¸® ¾øÀ½)"));
+        }
+        else
+        {
+            _soloTopicMode = SoloTopicMode.FollowLastTopic;
+            _soloTopicSeed = seed;
+            _soloTopicSeedAt = DateTimeOffset.Now;
+            vm.Messages.Add(new javis.Models.ChatMessage("assistant", "?? SOLO ½ÃÀÛ: ÃÖ±Ù ´ëÈ­¸¦ ÀÌ¾î¼­ »ý°¢ÇÒ°Ô"));
+        }
+    }
+
+    private string BuildLastTopicSeed(ChatViewModel vm, int lastUserLines = 4, int maxChars = 700)
+    {
+        // ÃÖ±Ù user ´ëÈ­ ¸î ÁÙ·Î seed¸¦ ±¸¼º (assistant´Â Á¦¿Ü: ÀÎ»ç/¸ÞÅ¸ ¹Ýº¹ ¹æÁö)
+        var userLines = vm.Messages
+            .Where(m => string.Equals(m.Role, "user", StringComparison.OrdinalIgnoreCase))
+            .Select(m => (m.Text ?? "").Trim())
+            .Where(t => t.Length > 0)
+            .TakeLast(lastUserLines)
+            .ToList();
+
+        if (userLines.Count == 0) return "";
+
+        var seed = string.Join("\n", userLines);
+        if (seed.Length > maxChars) seed = seed.Substring(seed.Length - maxChars);
+        return seed;
+    }
+
+    private void SoloToggle_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_soloCts != null) return;
+
+        BeginSoloTopicMode();
+
+        var vm = (ChatViewModel)DataContext;
+        vm.ContextVars["solo_mode"] = "on";
+        vm.ContextVars["user_action"] = "solo_start";
+
+        _soloCts = new CancellationTokenSource();
+
+        if (SoloStatusText != null)
+            SoloStatusText.Visibility = Visibility.Visible;
+
+        SetSoloStatus("SOLO c8b8c1d4dc");
+
+        AppendAssistant("SOLO a8dcdc ON (e4b2 e0ccc4c0a0 abb1bf)");
+
+        try { javis.App.Kernel?.Logger?.Log("solo.start", new { }); } catch { }
+
+        _soloTask = Task.Run(() => SoloLoopAsync(_soloCts.Token));
+    }
+
+    private async void SoloToggle_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_soloCts == null) return;
+
+        var vm = (ChatViewModel)DataContext;
+        vm.ContextVars["solo_mode"] = "off";
+        vm.ContextVars["user_action"] = "solo_stop";
+
+        SetSoloStatus("c5b5 b5ccadd4");
+        AppendAssistant("SOLO a8dcdc OFF b5ccadd4");
+
+        try { javis.App.Kernel?.Logger?.Log("solo.stop_request", new { }); } catch { }
+
+        _soloCts.Cancel();
+
+        try { if (_soloTask != null) await _soloTask; } catch { }
+
+        _soloCts.Dispose();
+        _soloCts = null;
+        _soloTask = null;
+
+        SetSoloStatus(string.Empty);
+        if (SoloStatusText != null)
+            SoloStatusText.Visibility = Visibility.Collapsed;
+
+        AppendAssistant("SOLO a8dcdc c5b5.");
+
+        try { javis.App.Kernel?.Logger?.Log("solo.stopped", new { }); } catch { }
+    }
+
+    private (bool idle, string newUserText, string recentContext, string topicMode, string topicSeed)
+        SnapshotSoloInputs(int maxRecentChars = 1400)
+    {
+        var vm = (ChatViewModel)DataContext;
+
+        // 2 user 45        var total = vm.Messages.Count;
+        var delta = vm.Messages.Skip(_soloLastSeenMsgIndex).ToList();
+        _soloLastSeenMsgIndex = total;
+        // Only trigger SOLO on *user* messages. We intentionally ignore assistant messages (including SOLO outputs).
+        var newUserText = string.Join("\n",
+            delta.Where(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
+                 .Select(m => (m.Text ?? "").Trim())
+                 .Where(t => t.Length > 0));
+
+        var idle = string.IsNullOrWhiteSpace(newUserText);
+
+        // recentContext (SOLO 2f 47)
+        var recent = vm.Messages
+            .Where(m =>
+            {
+                var role = (m.Role ?? "").ToLowerInvariant();
+                var text = (m.Text ?? "").Trim();
+                if (text.Length == 0) return false;
+                if (role == "user") return true;
+                if (role == "assistant") return !IsSoloMetaText(text);
+                return false;
+            })
+            .TakeLast(10)
+            .Select(m => $"{m.Role}: {m.Text}");
+
+        var recentContext = string.Join("\n", recent);
+        if (recentContext.Length > maxRecentChars)
+            recentContext = recentContext.Substring(recentContext.Length - maxRecentChars);
+
+        // ? 36 b5 c7 SOLO 2f 54 a7 7e c1 a7, 39 a7 "2 47" a7 2f a72f ab
+        if (!idle)
+        {
+            _soloTopicMode = SoloTopicMode.FollowLastTopic;
+            _soloTopicSeed = BuildLastTopicSeed(vm);
+            _soloTopicSeedAt = DateTimeOffset.Now;
+        }
+
+        return (idle,
+                newUserText,
+                recentContext,
+                _soloTopicMode.ToString(),
+                _soloTopicSeed);
+    }
+
+    private static bool IsSoloMetaText(string text)
+    {
+        // ? 37 45 d3 "36 47 37" + "SOLO 2dc4c5" 51 a7 afccb2 ecb6 48 a7 51 a7  b5
+        if (text.Contains("SOLO 36", StringComparison.OrdinalIgnoreCase)) return true;
+        if (text.Contains("34f0 47", StringComparison.OrdinalIgnoreCase)) return true;
+        if (text.Contains("45", StringComparison.OrdinalIgnoreCase) && text.Contains("SOLO", StringComparison.OrdinalIgnoreCase)) return true;
+        if (text.StartsWith("?? [SOLO", StringComparison.OrdinalIgnoreCase)) return true;
+        if (text.StartsWith("???", StringComparison.OrdinalIgnoreCase)) return true;
+        if (text.Contains("user_activation", StringComparison.OrdinalIgnoreCase)) return true;
+        if (text.Contains("solo_mode", StringComparison.OrdinalIgnoreCase)) return true;
+
+        return false;
+    }
+
+    private string PickNextTrack(bool idle)
+    {
+        bool UsedRecently(string t) => _soloRecentTracks.Contains(t);
+
+        var candidates = idle
+            ? new[] { "reflect", "maintain", "rest", "improve" }
+            : new[] { "converse", "reflect", "maintain", "rest" };
+
+        var now = DateTimeOffset.Now;
+        bool okReflect = now - _soloLastNoteAt > TimeSpan.FromSeconds(20);
+        bool okMaintain = now - _soloLastMaintainAt > TimeSpan.FromMinutes(2);
+        bool okImprove = now - _soloLastImproveAt > TimeSpan.FromMinutes(10);
+
+        foreach (var t in candidates)
+        {
+            if (UsedRecently(t)) continue;
+            if (t == "reflect" && !okReflect) continue;
+            if (t == "maintain" && !okMaintain) continue;
+            if (t == "improve" && !okImprove) continue;
+            return t;
+        }
+
+        return "rest";
+    }
+
+    private void MarkTrack(string track)
+    {
+        _soloRecentTracks.Enqueue(track);
+        while (_soloRecentTracks.Count > 6) _soloRecentTracks.Dequeue();
+
+        var now = DateTimeOffset.Now;
+        if (track == "reflect") _soloLastNoteAt = now;
+        if (track == "maintain") _soloLastMaintainAt = now;
+        if (track == "improve") _soloLastImproveAt = now;
+    }
+
+    private static readonly TimeSpan TopicTtl = TimeSpan.FromMinutes(35);
+
+    private int _soloRepeatHit = 0;
+    private int _soloAngle = 0;
+
+    private void MaybeExpireTopic()
+    {
+        if (_soloTopicMode != SoloTopicMode.FollowLastTopic) return;
+        if (DateTimeOffset.Now - _soloTopicSeedAt < TopicTtl) return;
+
+        _soloTopicMode = SoloTopicMode.FreePlay;
+        _soloTopicSeed = "";
+        _soloTopicSeedAt = DateTimeOffset.Now;
+
+        ((ChatViewModel)DataContext).Messages.Add(
+            new javis.Models.ChatMessage("assistant", "?? ÁÖÁ¦°¡ ¿À·¡µÇ¾î ÀÚÀ¯ ¸ðµå·Î ÀüÈ¯ÇÒ°Ô."));
+    }
+
+    private bool IsRepeatNote(string title, string body)
+    {
+        var sig = (title + "|" + body).Trim();
+        if (sig == _soloLastNoteSig)
+        {
+            _soloRepeatHit++;
+            return true;
+        }
+        _soloLastNoteSig = sig;
+        _soloRepeatHit = 0;
+        return false;
+    }
+
+    private int GetAngleIdAndAdvance()
+    {
+        var id = _soloAngle % 5;
+        _soloAngle++;
+        return id;
+    }
+
+    private static string AngleInstruction(int angleId)
+        => angleId switch
+        {
+            0 => "°üÂû/¿ä¾à: Áö±Ý ÁÖÁ¦¸¦ 3~6¹®ÀåÀ¸·Î Á¤¸®",
+            1 => "¹Ý·Ê/¸®½ºÅ©: Æ²¸± ¼ö ÀÖ´Â °¡Á¤, À§Çè¿ä¼Ò, ¹Ý´ë±Ù°Å",
+            2 => "´ÙÀ½ Çàµ¿: ´çÀå ÇÒ ¼ö ÀÖ´Â 3°¡Áö ¾×¼Ç(±¸Ã¼Àû)",
+            3 => "ÀÚµ¿È­ °üÁ¡: ¹Ýº¹/ÀÚµ¿È­ °¡Ä¡°¡ ÀÖ´Â ºÎºÐ(½ºÅ³ ÈÄº¸ Æ÷ÇÔ)",
+            4 => "Áú¹® »ý¼º: ³»ÀÏ ÀÌ¾î°¥ Áú¹® 2~5°³",
+            _ => "°üÂû/¿ä¾à"
+        };
+
+    private string BuildSoloPrompt(
+        bool idle,
+        string track,
+        string newUserText,
+        string recentContext,
+        string skillSummaries,
+        string vaultSnippets,
+        string repeatCandidateBlock,
+        string topicMode,
+        string topicSeed)
+    {
+        var hasTopic = !string.IsNullOrWhiteSpace(topicSeed);
+        var hasSnippets = !(vaultSnippets?.Contains("¾øÀ½") ?? true) && !(vaultSnippets?.Contains("¾ø½À´Ï´Ù") ?? true);
+
+        var canonBlock = Host.Canon.BuildPromptBlock(query: (newUserText + " " + vaultSnippets + " " + topicSeed).Trim(), maxItems: 6);
+
+        var angleId = GetAngleIdAndAdvance();
+        var angleText = AngleInstruction(angleId);
+
+        return $$"""
+{Host.Persona.CoreText}
+
+{Host.Persona.SoloOverlayText}
+
+[CANON]
+{canonBlock}
+
+idle={idle}
+track={track}
+topic_mode={topicMode}
+has_topic={hasTopic}
+has_snippets={hasSnippets}
+
+angle_id={angleId}
+angle_rule={angleText}
+
+[TOPIC SEED]
+{(hasTopic ? topicSeed : "(¾øÀ½)")}
+
+[ÃÖ±Ù ´ëÈ­(Âü°í)]
+{recentContext}
+
+[»õ »ç¿ëÀÚ ÀÔ·Â(ÀÖÀ¸¸é ÀÌ°Í¸¸ ¹ÝÀÀ)]
+{newUserText}
+
+[¹Ýº¹ °¨Áö ÈÄº¸]
+{repeatCandidateBlock}
+
+[ÇöÀç ½ºÅ³]
+{skillSummaries}
+
+[ÃÖ±Ù ÀÚ·á ½º´ÏÆê]
+{vaultSnippets}
+
+ÇÙ½É ±ÔÄ¢:
+- "SOLO", "È°¼ºÈ­", "Á¾·á", "´Ù½Ã ´­·¯" °°Àº ¸ÞÅ¸ ¹®Àå/¾È³» ¹®Àå ±ÝÁö.
+- ÀÌ¹ø ÅÏÀº angle_ruleÀ» ¹Ýµå½Ã µû¸¥´Ù.
+
+- topic_mode=FollowLastTopicÀÌ¸é:
+  - idle=true¿©µµ TOPIC SEED¸¦ Áß½ÉÀ¸·Î È¥ÀÚ »ý°¢À» °è¼ÓÇÑ´Ù.
+  - È¥ÀÚ Åä·Ð(ÀÚ¹®ÀÚ´ä/Âù¹Ý)Àº say·Î ±æ°Ô ¶°µéÁö ¸»°í save_note·Î ³²±ä´Ù.
+- topic_mode=FreePlayÀÌ¸é:
+  - ¿ÜºÎ Àç·á ¾ø¾îµµ ÀÏ¹ÝÁö½Ä ±â¹ÝÀ¸·Î ¡°È¥ÀÚ ³î±â¡±¸¦ ÇÑ´Ù(¾ÆÀÌµð¾î, ¼³°è, Á¡°Ë, ¹é·Î±×).
+- create_skillÀº ´ÙÀ½ Á¶°Ç¿¡¼­¸¸:
+  - ¹Ýº¹ °¨Áö ÈÄº¸°¡ ÀÖ°Å³ª
+  - TOPIC SEED¿¡ ´ëÇØ ¡°¹Ýº¹ÀûÀ¸·Î ÀÚµ¿È­ °¡Ä¡°¡ ¸íÈ®¡±ÇÒ ¶§
+- has_snippets=falseÀÌ°í has_topic=falseÀÌ¸é: sleep ¶Ç´Â maintain(run_skill) À§ÁÖ.
+
+Ãâ·ÂÀº JSON ÇÏ³ª¸¸:
+{
+  "intent": "say|save_note|run_skill|create_skill|sleep|stop",
+  "say": "sayÀÏ ¶§¸¸",
+  "note": {
+    "title": "ÂªÀº Á¦¸ñ",
+    "body": "2~10¹®Àå(ÇÊ¿äÇÏ¸é A:/B: ´ëÈ­ Çü½Ä °¡´É)",
+    "tags": ["..."],
+    "questions": ["..."]
+  },
+  "skill_id": "run_skillÀÏ ¶§¸¸",
+  "vars": { "k":"v" },
+  "requirement": "create_skillÀÏ ¶§¸¸",
+  "ms": 1200
+}
+
+stop ±ÔÄ¢:
+- stopÀº »ç¿ëÀÚ°¡ ¸í½ÃÀûÀ¸·Î Á¾·á¸¦ ¿äÃ»ÇÑ °æ¿ì¿¡¸¸.
+""";
+    }
+
+    private static readonly TimeSpan SoloLoopTick = TimeSpan.FromSeconds(10);
+
+    private readonly SemaphoreSlim _soloGenLock = new(1, 1);
+    private DateTimeOffset _soloLastGenStartedAt = DateTimeOffset.MinValue;
+
+    private async Task<bool> TryRunSoloGenerationAsync(Func<CancellationToken, Task> work, CancellationToken ct)
+    {
+        if (!await _soloGenLock.WaitAsync(0, ct))
+            return false;
+
+        try
+        {
+            _soloLastGenStartedAt = DateTimeOffset.Now;
+            await work(ct);
+            return true;
+        }
+        finally
+        {
+            _soloGenLock.Release();
+        }
+    }
+
+    private static async Task RunWithTimeoutAsync(Func<CancellationToken, Task> work, TimeSpan timeout, CancellationToken ct)
+    {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(timeout);
+        await work(cts.Token);
+    }
+
+    private async Task SoloLoopAsync(CancellationToken ct)
+    {
+        const int MAX_STEPS = 500;
+        const int BASE_DELAY_MS = 650;
+        const int MAX_ERROR_STREAK = 5;
+
+        int step = 0;
+        int errorStreak = 0;
+
+        while (!ct.IsCancellationRequested && step < MAX_STEPS)
+        {
+            step++;
+
+            try
+            {
+                await UiAsync(() => MaybeExpireTopic());
+
+                SetSoloStatus("»ý°¢ Áß¡¦");
+
+                var (idle, newUserText, recentContext, topicMode, topicSeed) = await UiAsync(() => SnapshotSoloInputs());
+
+                await TryRunSoloGenerationAsync(async innerCt =>
+                {
+                    await RunWithTimeoutAsync(async ct2 =>
+                    {
+                        var track = PickNextTrack(idle);
+
+                        if (idle)
+                            await Task.Delay(2000, ct2);
+
+                        var vaultSnippets = Host.VaultIndex.BuildSnippetsBlockForPrompt(6);
+                        var hasSnippets = !(vaultSnippets.Contains("¾øÀ½") || vaultSnippets.Contains("¾ø½À´Ï´Ù"));
+
+                        if (idle && !hasSnippets && track == "reflect")
+                            track = "maintain";
+
+                        var repeatCandidateBlock = "";
+
+                        var prompt = BuildSoloPrompt(
+                            idle, track, newUserText, recentContext,
+                            Host.GetSkillSummaries(),
+                            vaultSnippets,
+                            repeatCandidateBlock,
+                            topicMode,
+                            topicSeed
+                        );
+
+                        try { javis.App.Kernel?.Logger?.Log("solo.llm.request", new { step, idle, track }); } catch { }
+
+                        var raw = await Llm.GenerateAsync(prompt, ct2);
+                        var json = ExtractFirstJsonObject(raw);
+
+                        try { javis.App.Kernel?.Logger?.Log("solo.llm.response", new { step, idle, track, json }); } catch { }
+
+                        using var doc = JsonDocument.Parse(json);
+                        var root = doc.RootElement;
+
+                        var intent = root.TryGetProperty("intent", out var iEl) ? (iEl.GetString() ?? "say") : "say";
+
+                        if (intent == "say")
+                        {
+                            var text = root.TryGetProperty("say", out var sEl) ? (sEl.GetString() ?? "") : "";
+
+                            if (idle)
+                            {
+                                await Task.Delay(900, ct2);
+                                MarkTrack(track);
+                                return;
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(text))
+                                await UiAsync(() => AppendAssistant($"??? {text}"));
+                        }
+                        else if (intent == "save_note")
+                        {
+                            if (!Host.SoloLimiter.CanWriteNow())
+                            {
+                                await Task.Delay(1200, ct2);
+                                MarkTrack(track);
+                                return;
+                            }
+
+                            var noteEl = root.GetProperty("note");
+                            var title = noteEl.TryGetProperty("title", out var tEl) ? (tEl.GetString() ?? "³ëÆ®") : "³ëÆ®";
+                            var body = noteEl.TryGetProperty("body", out var bEl) ? (bEl.GetString() ?? "") : "";
+
+                            if (IsRepeatNote(title, body))
+                            {
+                                if (_soloRepeatHit >= 2)
+                                {
+                                    _soloTopicMode = SoloTopicMode.FreePlay;
+                                    _soloTopicSeed = "";
+                                    _soloTopicSeedAt = DateTimeOffset.Now;
+                                }
+
+                                await Task.Delay(7000, ct2);
+                                return;
+                            }
+
+                            var tags = ReadStringArray(noteEl, "tags", 8, 40);
+                            var qs = ReadStringArray(noteEl, "questions", 4, 180);
+
+                            await Host.SoloNotes.AppendAsync("note", new { title, body, tags, questions = qs }, ct2);
+                            Host.SoloLimiter.MarkWrote();
+
+                            var shouldPromote = tags.Any(t => t.Equals("canon", StringComparison.OrdinalIgnoreCase));
+                            if (shouldPromote)
+                                await Host.Canon.AppendAsync(title, body, tags.ToArray(), kind: "promoted", ct: ct2);
+
+                            var chatText =
+                                $"?? [SOLO ³ëÆ®]\n{title}\n\n{TrimMax(body, 350)}" +
+                                (qs.Count > 0 ? "\n\n? Áú¹®\n- " + string.Join("\n- ", qs) : "") +
+                                (tags.Count > 0 ? "\n\n??? " + string.Join(", ", tags) : "");
+
+                            await UiAsync(() => AppendAssistant(chatText));
+                        }
+                        else if (intent == "run_skill")
+                        {
+                            var skillId = root.GetProperty("skill_id").GetString() ?? "";
+                            var vars = ReadVars(root);
+                            await UiAsync(() => AppendAssistant($"?? (solo) ½ºÅ³ ½ÇÇà: {skillId}"));
+                            await Host.RunSkillByIdAsync(skillId, vars, ct2);
+                        }
+                        else if (intent == "create_skill")
+                        {
+                            var now = DateTimeOffset.Now;
+                            if (_soloCreateCount >= MAX_CREATES_PER_SESSION || (now - _soloLastCreateAt) < CreateCooldown)
+                            {
+                                await UiAsync(() => AppendAssistant("?? (solo) ±â´É »ý¼ºÀº Àá±ñ ½¬°í, ¾ÆÀÌµð¾î´Â ³ëÆ®·Î ÃàÀûÇÒ°Ô."));
+                                MarkTrack(track);
+                                return;
+                            }
+
+                            var req = root.GetProperty("requirement").GetString() ?? "";
+                            await UiAsync(() => AppendAssistant($"??? (solo) ±â´É »ý¼º: {req}"));
+
+                            var (skillFile, pluginFile) = await Host.CreateSkillAsync(req);
+                            _soloCreateCount++;
+                            _soloLastCreateAt = now;
+
+                            await UiAsync(() => AppendAssistant(
+                                pluginFile is null
+                                    ? $"? »ý¼º ¿Ï·á: {skillFile}"
+                                    : $"? »ý¼º ¿Ï·á: {skillFile} (+ {pluginFile})"));
+                        }
+                        else if (intent == "sleep")
+                        {
+                            var ms = root.TryGetProperty("ms", out var msEl) ? msEl.GetInt32() : 0;
+                            ms = Math.Clamp(ms, 3000, 55_000);
+                            SetSoloStatus($"´ë±â {ms}ms¡¦");
+                            await Task.Delay(ms, ct2);
+                        }
+                        else if (intent == "stop")
+                        {
+                            await UiAsync(() => AppendAssistant("(solo) ÀÚÃ¼ Á¾·áÇÒ°Ô."));
+                            await UiAsync(() => SoloToggle.IsChecked = false);
+                        }
+                        else
+                        {
+                            await UiAsync(() => AppendAssistant($"(solo) ¾Ë ¼ö ¾ø´Â intent: {intent}"));
+                        }
+
+                        if (CircuitBreakIfLoop(reply: raw))
+                            return;
+
+                        MarkTrack(track);
+                    }, TimeSpan.FromSeconds(90), innerCt);
+                }, ct);
+
+                errorStreak = 0;
+                await Task.Delay(SoloLoopTick, ct);
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception ex)
+            {
+                errorStreak++;
+                await UiAsync(() => AppendAssistant($"(solo ¿À·ù) {ex.Message}"));
+                SetSoloStatus($"¿À·ù ({errorStreak}/{MAX_ERROR_STREAK})");
+
+                try { javis.App.Kernel?.Logger?.Log("solo.error", new { step, error = ex.Message, stack = ex.ToString() }); } catch { }
+
+                if (errorStreak >= MAX_ERROR_STREAK)
+                {
+                    await UiAsync(() => AppendAssistant("¿À·ù°¡ ¹Ýº¹µÇ¾î SOLO¸¦ ÀÚµ¿ Á¾·áÇÕ´Ï´Ù."));
+                    await UiAsync(() => SoloToggle.IsChecked = false);
+                    break;
+                }
+
+                await Task.Delay(1200, ct);
+            }
+        }
+
+        if (step >= MAX_STEPS)
+        {
+            await UiAsync(() => AppendAssistant($"SOLO ÃÖ´ë ¹Ýº¹({MAX_STEPS}) µµ´Þ·Î ÀÚµ¿ Á¾·áÇÕ´Ï´Ù."));
+            await UiAsync(() => SoloToggle.IsChecked = false);
+        }
+    }
+
+    private static Dictionary<string, string> ReadVars(JsonElement root)
+    {
+        var vars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (root.TryGetProperty("vars", out var varsEl) && varsEl.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var p in varsEl.EnumerateObject())
+                vars[p.Name] = p.Value.ValueKind == JsonValueKind.String ? (p.Value.GetString() ?? "") : p.Value.ToString();
+        }
+
+        return vars;
+    }
+
+    private static string ExtractFirstJsonObject(string s)
+    {
+        var start = s.IndexOf('{');
+        if (start < 0) throw new Exception("JSON \uC2DC\uC791 '{' \uC5C6\uC74C");
+
+        int depth = 0;
+        for (int i = start; i < s.Length; i++)
+        {
+            if (s[i] == '{') depth++;
+            else if (s[i] == '}')
+            {
+                depth--;
+                if (depth == 0) return s.Substring(start, i - start + 1);
+            }
+        }
+        throw new Exception("JSON \uCD94\uCD9C \uC2E4\uD328");
+    }
+
+    private static Task UiAsync(Action a)
+        => Application.Current.Dispatcher.InvokeAsync(a, DispatcherPriority.Background).Task;
+
+    private static Task<T> UiAsync<T>(Func<T> f)
+        => Application.Current.Dispatcher.InvokeAsync(f, DispatcherPriority.Background).Task;
+
+    private async void InputBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+
+        // Shift+Enter => ÁÙ¹Ù²Þ Çã¿ë
+        if (Keyboard.Modifiers == ModifierKeys.Shift)
+            return;
+
+        // Enter => Àü¼Û
+        e.Handled = true;
+
+        // Busy°Å³ª ºó ÀÔ·ÂÀÌ¸é ¹«½Ã
+        if (_vm.IsBusy) return;
+        if (string.IsNullOrWhiteSpace(_vm.InputText)) return;
+
+        try
+        {
+            javis.App.Kernel?.Archive.Record(
+                content: _vm.InputText,
+                role: GEMSRole.Connectors,
+                state: KnowledgeState.Active,
+                sessionId: javis.App.Kernel?.Logger?.SessionId,
+                meta: new() { ["kind"] = "chat", ["source"] = "user" });
+        }
+        catch { }
+
+        await _vm.SendAsync();
+    }
+
+    private void ScrollToEnd()
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (ChatList.Items.Count > 0)
+                ChatList.ScrollIntoView(ChatList.Items[^1]);
+        });
+    }
+
+    private JarvisKernel Kernel => javis.App.Kernel;
+
+    private void OpenPersonaFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var dir = Kernel.Persona.PersonaDir;
+
+        Directory.CreateDirectory(dir);
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = dir,
+            UseShellExecute = true
+        });
+
+        ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"\uD83D\uDCC2 Persona folder opened: {dir}"));
+    }
+
+    private void ReloadPersona_Click(object sender, RoutedEventArgs e)
+    {
+        Kernel.Persona.Reload();
+
+        ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage(
+            "assistant",
+            "\u2705 Persona reloaded (core/chat/solo txt)"
+        ));
+    }
+
+    private async void ImportFiles_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = "Select files to import into Jarvis",
+            Multiselect = true,
+            Filter =
+                "All files (*.*)|*.*|" +
+                "Documents (*.txt;*.md;*.docx;*.pdf)|*.txt;*.md;*.docx;*.pdf|" +
+                "Images (*.png;*.jpg;*.jpeg;*.webp)|*.png;*.jpg;*.jpeg;*.webp"
+        };
+
+        if (dlg.ShowDialog() != true) return;
+
+        ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"? Importing {dlg.FileNames.Length} files..."));
+
+        try
+        {
+            var imported = await Kernel.Vault.ImportAsync(dlg.FileNames);
+
+            var indexedCount = await Kernel.VaultIndex.IndexNewAsync(imported, maxFiles: 10);
+
+            ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"?? Indexed: {indexedCount} files"));
+
+            var lines = imported
+                .Select(x => $"- {x.fileName} ({x.sizeBytes} bytes, {x.ext})")
+                .ToList();
+
+            ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage(
+                "assistant",
+                "\u2705 Import complete\n" + string.Join("\n", lines) +
+                $"\n\nSaved to: {Kernel.Vault.InboxDir}"
+            ));
+        }
+        catch (Exception ex)
+        {
+            ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"? Import failed: {ex.Message}"));
+        }
+    }
+
+    private async void ChatRoot_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+
+        var files = (string[]?)e.Data.GetData(DataFormats.FileDrop);
+        if (files == null || files.Length == 0) return;
+
+        ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"\u23F3 Importing dropped files ({files.Length})..."));
+
+        try
+        {
+            var imported = await Kernel.Vault.ImportAsync(files);
+            var indexedCount = await Kernel.VaultIndex.IndexNewAsync(imported, maxFiles: 10);
+            ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"\uD83D\uDD0E Indexed: {indexedCount} files"));
+            ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"\u2705 Dropped files saved to: {Kernel.Vault.InboxDir}"));
+        }
+        catch (Exception ex)
+        {
+            ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"? Drop import failed: {ex.Message}"));
+        }
+    }
+
+    private async void ExportSft_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new SaveFileDialog
+        {
+            Title = "SFT µ¥ÀÌÅÍ¼Â ÀúÀå",
+            Filter = "JSONL (*.jsonl)|*.jsonl",
+            FileName = $"jarvis-sft-{DateTime.Now:yyyyMMdd-HHmmss}.jsonl"
+        };
+
+        if (dlg.ShowDialog() != true) return;
+
+        var vm = (ChatViewModel)DataContext;
+        vm.Messages.Add(new javis.Models.ChatMessage("assistant", "? SFT µ¥ÀÌÅÍ¼Â »ý¼º Áß¡¦"));
+
+        try
+        {
+            var n = await Host.Exporter.ExportChatMlJsonlAsync(
+                outputPath: dlg.FileName,
+                includeCanon: true,
+                includeSoloNotes: true,
+                maxCanonItems: 800,
+                maxNotesItems: 400,
+                ct: CancellationToken.None);
+
+            vm.Messages.Add(new javis.Models.ChatMessage("assistant", $"? SFT »ý¼º ¿Ï·á: {n} samples\n{dlg.FileName}"));
+        }
+        catch (Exception ex)
+        {
+            vm.Messages.Add(new javis.Models.ChatMessage("assistant", $"? SFT »ý¼º ½ÇÆÐ: {ex.Message}"));
+        }
+    }
+
+    static string TrimMax(string s, int max)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return "";
+        s = s.Trim();
+        return s.Length <= max ? s : s.Substring(0, max) + "¡¦";
+    }
+
+    static List<string> ReadStringArray(JsonElement root, string name, int take, int maxLen)
+    {
+        var list = new List<string>();
+        if (!root.TryGetProperty(name, out var el) || el.ValueKind != JsonValueKind.Array) return list;
+        foreach (var it in el.EnumerateArray())
+        {
+            var s = it.ValueKind == JsonValueKind.String ? (it.GetString() ?? "") : it.ToString();
+            s = TrimMax(s, maxLen);
+            if (!string.IsNullOrWhiteSpace(s)) list.Add(s);
+            if (list.Count >= take) break;
+        }
+        return list;
+    }
+}

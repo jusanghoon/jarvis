@@ -1,6 +1,7 @@
-using System;
+ï»¿using System;
 using System.IO;
 using System.Text;
+using Jarvis.Core.Archive;
 
 namespace javis.Services;
 
@@ -12,7 +13,10 @@ public sealed class JarvisKernel
     public string LogsDir { get; }
 
     public AuditLogger Logger { get; }
+    public ArchiveStore Archive { get; }
     public PersonaManager Persona { get; }
+
+    public FossilQueryService Fossils { get; }
 
     public SkillRuntime Runtime { get; } = new();
 
@@ -43,6 +47,16 @@ public sealed class JarvisKernel
         Logger.PruneOldLogs(keepDays: 30);
         Logger.Log("app.start", new { tfm = "net10.0-windows" });
 
+        Archive = new ArchiveStore(Logger);
+        Archive.Record(
+            content: "SYSTEM_BOOT",
+            role: GEMSRole.Recorder,
+            state: KnowledgeState.Idle,
+            sessionId: Logger.SessionId,
+            meta: new() { ["kind"] = "system" });
+
+        Fossils = new FossilQueryService(Logger.LogsDir);
+
         Persona = new PersonaManager(DataDir);
         Persona.Initialize();
 
@@ -69,10 +83,10 @@ public sealed class JarvisKernel
     public string GetVaultContextForSolo(int maxItems = 10)
     {
         var recent = Vault.ReadRecent(maxItems);
-        if (recent.Count == 0) return "(ÃÖ±Ù Ãß°¡µÈ ÀÚ·á ¾øÀ½)";
+        if (recent.Count == 0) return "(ìµœê·¼ ì¶”ê°€ëœ ìë£Œ ì—†ìŒ)";
 
         var sb = new StringBuilder();
-        sb.AppendLine("ÃÖ±Ù Ãß°¡µÈ ÀÚ·á:");
+        sb.AppendLine("ìµœê·¼ ì¶”ê°€ëœ ìë£Œ:");
 
         foreach (var it in recent)
         {

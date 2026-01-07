@@ -1,17 +1,15 @@
-using System;
-using System.Collections.Generic;
+ï»¿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Threading;
 using Microsoft.Win32;
+using Jarvis.Core.Archive;
 using javis.Services;
+using javis.Services.Solo;
 using javis.ViewModels;
 
 namespace javis.Pages;
@@ -20,53 +18,38 @@ public partial class ChatPage : Page
 {
     private readonly ChatViewModel _vm = new();
 
-    private CancellationTokenSource? _soloCts;
-    private Task? _soloTask;
+    private const bool UseSoloOrchestrator = true;
 
-    private int _soloLastSeenMsgIndex = 0;
-    private string? _soloLastNoteSig;
+    private SoloOrchestrator? _soloOrch;
+    private long _nextUserMsgId;
 
-    private readonly Queue<string> _soloRecentTracks = new();
-    private DateTimeOffset _soloLastNoteAt = DateTimeOffset.MinValue;
-    private DateTimeOffset _soloLastMaintainAt = DateTimeOffset.MinValue;
-    private DateTimeOffset _soloLastImproveAt = DateTimeOffset.MinValue;
+    // DUO run cancellation (prevents late debate completion after switching pages)
+    private CancellationTokenSource? _duoCts;
+    private Task? _duoTask;
 
-    private int _soloGreetingStreak = 0;
+    // debate debug UI preview toggle (runtime)
+    private bool _debateShow = false;
+    private bool _forceDebate = false;
 
-    private int _soloCreateCount = 0;
-    private DateTimeOffset _soloLastCreateAt = DateTimeOffset.MinValue;
-
-    // FreePlay improve(ÀÚµ¿È­) Á¦¾î
-    private DateTimeOffset _freePlayLastImproveAt = DateTimeOffset.MinValue;
-    private static readonly TimeSpan FreePlayImproveMinInterval = TimeSpan.FromMinutes(15);
-    private static readonly TimeSpan FreePlayMinInterval = TimeSpan.FromSeconds(45);
-
-    // create_skill Á¦ÇÑ(¼¼¼Ç/Äğ´Ù¿î)
-    private static readonly TimeSpan CreateCooldown = TimeSpan.FromMinutes(30);
-    private const int MAX_CREATES_PER_SESSION = 4;
+    // MainChat autosave session guard
+    private string? _mainChatSessionId;
+    private int _mainChatSaveGate; // 0 = not saved, 1 = saving/saved
+    private DateTimeOffset _mainChatStartedAt;
 
     private PluginHost Host => PluginHost.Instance;
-    private OllamaClient Llm { get; } = new("http://localhost:11434", "qwen3:4b");
 
-    private void AppendAssistant(string text)
+    private JarvisKernel Kernel => javis.App.Kernel;
+
+    private readonly ChatMode _mode;
+
+    public ChatPage() : this(ChatMode.MainChat)
     {
-        ChatBus.Send(text);
     }
 
-    private void SetSoloStatus(string text)
-        => _ = UiAsync(() =>
-        {
-            if (SoloStatusText == null) return;
-            SoloStatusText.Text = text ?? "";
-        });
-
-    private void AddJarvisMessage(string text)
+    public ChatPage(ChatMode mode)
     {
-        ChatBus.Send(text);
-    }
+        _mode = mode;
 
-    public ChatPage()
-    {
         InitializeComponent();
         DataContext = _vm;
 
@@ -74,9 +57,10 @@ public partial class ChatPage : Page
 
         Loaded += ChatPage_Loaded;
         Unloaded += ChatPage_Unloaded;
+        IsVisibleChanged += ChatPage_IsVisibleChanged;
     }
 
-    private void ChatPage_Loaded(object sender, RoutedEventArgs e)
+    private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
     {
         InputBox.Focus();
 
@@ -84,647 +68,166 @@ public partial class ChatPage : Page
 
         while (ChatBus.TryDequeue(out var t))
             _ = _vm.SendExternalAsync(t);
-    }
 
-    private void ChatPage_Unloaded(object sender, RoutedEventArgs e)
-    {
-        ChatBus.MessageQueued -= OnBusMessage;
-    }
-
-    private void OnBusMessage(string text)
-    {
-        Dispatcher.InvokeAsync(async () =>
-        {
-            await _vm.SendExternalAsync(text);
-        });
-    }
-
-    private enum SoloTopicMode { FreePlay, FollowLastTopic }
-
-    private SoloTopicMode _soloTopicMode = SoloTopicMode.FreePlay;
-    private string _soloTopicSeed = "";
-    private DateTimeOffset _soloTopicSeedAt = DateTimeOffset.MinValue;
-
-    private void BeginSoloTopicMode()
-    {
-        var vm = (ChatViewModel)DataContext;
-        var seed = BuildLastTopicSeed(vm);
-
-        if (string.IsNullOrWhiteSpace(seed))
-        {
-            _soloTopicMode = SoloTopicMode.FreePlay;
-            _soloTopicSeed = "";
-            _soloTopicSeedAt = DateTimeOffset.Now;
-            vm.Messages.Add(new javis.Models.ChatMessage("assistant", "? SOLO ½ÃÀÛ: ÀÚÀ¯ ¸ğµå(´ëÈ­ ÁÖÁ¦ ¾øÀ½)"));
-        }
-        else
-        {
-            _soloTopicMode = SoloTopicMode.FollowLastTopic;
-            _soloTopicSeed = seed;
-            _soloTopicSeedAt = DateTimeOffset.Now;
-            vm.Messages.Add(new javis.Models.ChatMessage("assistant", "? SOLO ½ÃÀÛ: ¸¶Áö¸· ÁÖÁ¦ ÀÌ¾î¼­ »ı°¢ÇÒ°Ô"));
-        }
-    }
-
-    private string BuildLastTopicSeed(ChatViewModel vm, int lastUserLines = 4, int maxChars = 700)
-    {
-        // ÃÖ±Ù user ¹ßÈ­ ¸î °³¸¦ seed·Î »ç¿ë (assistant´Â ³ÖÁö ¾ÊÀ½: ¿¡ÄÚ/¸ŞÅ¸ ¹İº¹ ¹æÁö)
-        var userLines = vm.Messages
-            .Where(m => string.Equals(m.Role, "user", StringComparison.OrdinalIgnoreCase))
-            .Select(m => (m.Text ?? "").Trim())
-            .Where(t => t.Length > 0)
-            .TakeLast(lastUserLines)
-            .ToList();
-
-        if (userLines.Count == 0) return "";
-
-        var seed = string.Join("\n", userLines);
-        if (seed.Length > maxChars) seed = seed.Substring(seed.Length - maxChars);
-        return seed;
-    }
-
-    private void SoloToggle_Checked(object sender, RoutedEventArgs e)
-    {
-        if (_soloCts != null) return;
-
-        BeginSoloTopicMode();
+        EnsureSoloOrchestrator();
 
         var vm = (ChatViewModel)DataContext;
-        vm.ContextVars["solo_mode"] = "on";
-        vm.ContextVars["user_action"] = "solo_start";
 
-        _soloCts = new CancellationTokenSource();
+        // default: hide history button unless MainChat
+        if (MainHistoryButton != null)
+            MainHistoryButton.Visibility = _mode == ChatMode.MainChat ? Visibility.Visible : Visibility.Collapsed;
 
-        if (SoloStatusText != null)
-            SoloStatusText.Visibility = Visibility.Visible;
-
-        SetSoloStatus("SOLO \uC2DC\uC791\u2026");
-
-        AppendAssistant("SOLO \uBAA8\uB4DC ON (\uB2E4\uC2DC \uB20C\uB7EC\uC11C \uC885\uB8CC)");
-
-        try { javis.App.Kernel?.Logger?.Log("solo.start", new { }); } catch { }
-
-        _soloTask = Task.Run(() => SoloLoopAsync(_soloCts.Token));
-    }
-
-    private async void SoloToggle_Unchecked(object sender, RoutedEventArgs e)
-    {
-        if (_soloCts == null) return;
-
-        var vm = (ChatViewModel)DataContext;
-        vm.ContextVars["solo_mode"] = "off";
-        vm.ContextVars["user_action"] = "solo_stop";
-
-        SetSoloStatus("\uC885\uB8CC \uC694\uCCAD\u2026");
-        AppendAssistant("SOLO \uBAA8\uB4DC OFF \uC694\uCCAD\u2026");
-
-        try { javis.App.Kernel?.Logger?.Log("solo.stop_request", new { }); } catch { }
-
-        _soloCts.Cancel();
-
-        try { if (_soloTask != null) await _soloTask; } catch { }
-
-        _soloCts.Dispose();
-        _soloCts = null;
-        _soloTask = null;
-
-        SetSoloStatus(string.Empty);
-        if (SoloStatusText != null)
-            SoloStatusText.Visibility = Visibility.Collapsed;
-
-        AppendAssistant("SOLO \uBAA8\uB4DC \uC885\uB8CC.");
-
-        try { javis.App.Kernel?.Logger?.Log("solo.stopped", new { }); } catch { }
-    }
-
-    private (bool idle, string newUserText, string recentContext, string topicMode, string topicSeed)
-        SnapshotSoloInputs(int maxRecentChars = 1400)
-    {
-        var vm = (ChatViewModel)DataContext;
-
-        // »õ user ÀÔ·Â(ÁõºĞ)
-        var total = vm.Messages.Count;
-        var delta = vm.Messages.Skip(_soloLastSeenMsgIndex).ToList();
-        _soloLastSeenMsgIndex = total;
-
-        var newUserText = string.Join("\n",
-            delta.Where(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
-                 .Select(m => (m.Text ?? "").Trim())
-                 .Where(t => t.Length > 0));
-
-        var idle = string.IsNullOrWhiteSpace(newUserText);
-
-        // recentContext (SOLO ¸ŞÅ¸ Á¦¿Ü)
-        var recent = vm.Messages
-            .Where(m =>
-            {
-                var role = (m.Role ?? "").ToLowerInvariant();
-                var text = (m.Text ?? "").Trim();
-                if (text.Length == 0) return false;
-                if (role == "user") return true;
-                if (role == "assistant") return !IsSoloMetaText(text);
-                return false;
-            })
-            .TakeLast(10)
-            .Select(m => $"{m.Role}: {m.Text}");
-
-        var recentContext = string.Join("\n", recent);
-        if (recentContext.Length > maxRecentChars)
-            recentContext = recentContext.Substring(recentContext.Length - maxRecentChars);
-
-        // ? »ç¿ëÀÚ°¡ SOLO Áß »õ·Î ¸»ÇÏ¸é, ±×°É "»õ ÁÖÁ¦"·Î ¾÷µ¥ÀÌÆ®
-        if (!idle)
+        // Start a new MainChat session if needed
+        if (_mode == ChatMode.MainChat)
         {
-            _soloTopicMode = SoloTopicMode.FollowLastTopic;
-            _soloTopicSeed = BuildLastTopicSeed(vm);
-            _soloTopicSeedAt = DateTimeOffset.Now;
+            _mainChatStartedAt = DateTimeOffset.Now;
+            _mainChatSessionId ??= _mainChatStartedAt.ToString("yyyyMMdd_HHmmss_fff");
+            System.Threading.Interlocked.Exchange(ref _mainChatSaveGate, 0);
         }
 
-        return (idle,
-                newUserText,
-                recentContext,
-                _soloTopicMode.ToString(),
-                _soloTopicSeed);
-    }
-
-    private static bool IsSoloMetaText(string text)
-    {
-        // ? ¿©±â ÆĞÅÏÀÌ "°è¼Ó Á¾·á °­¿ä" + "SOLO È°¼ºÈ­" ¹İº¹ÀÇ ±Ù¿øÀÌ¶ó °­ÇÏ°Ô ÄÆ
-        if (text.Contains("SOLO ¸ğµå", StringComparison.OrdinalIgnoreCase)) return true;
-        if (text.Contains("´Ù½Ã ´­·¯", StringComparison.OrdinalIgnoreCase)) return true;
-        if (text.Contains("Á¾·á", StringComparison.OrdinalIgnoreCase) && text.Contains("SOLO", StringComparison.OrdinalIgnoreCase)) return true;
-        if (text.StartsWith("?? [SOLO", StringComparison.OrdinalIgnoreCase)) return true;
-        if (text.StartsWith("???", StringComparison.OrdinalIgnoreCase)) return true;
-        if (text.Contains("user_activation", StringComparison.OrdinalIgnoreCase)) return true;
-        if (text.Contains("solo_mode", StringComparison.OrdinalIgnoreCase)) return true;
-
-        return false;
-    }
-
-    private string PickNextTrack(bool idle)
-    {
-        bool UsedRecently(string t) => _soloRecentTracks.Contains(t);
-
-        var candidates = idle
-            ? new[] { "reflect", "maintain", "rest", "improve" }
-            : new[] { "converse", "reflect", "maintain", "rest" };
-
-        var now = DateTimeOffset.Now;
-        bool okReflect = now - _soloLastNoteAt > TimeSpan.FromSeconds(20);
-        bool okMaintain = now - _soloLastMaintainAt > TimeSpan.FromMinutes(2);
-        bool okImprove = now - _soloLastImproveAt > TimeSpan.FromMinutes(10);
-
-        foreach (var t in candidates)
+        switch (_mode)
         {
-            if (UsedRecently(t)) continue;
-            if (t == "reflect" && !okReflect) continue;
-            if (t == "maintain" && !okMaintain) continue;
-            if (t == "improve" && !okImprove) continue;
-            return t;
-        }
+            case ChatMode.MainChat:
+                vm.SelectedRoom = javis.ViewModels.ChatRoom.Main;
+                RoomMain_Click(this, new RoutedEventArgs());
 
-        return "rest";
-    }
-
-    private void MarkTrack(string track)
-    {
-        _soloRecentTracks.Enqueue(track);
-        while (_soloRecentTracks.Count > 6) _soloRecentTracks.Dequeue();
-
-        var now = DateTimeOffset.Now;
-        if (track == "reflect") _soloLastNoteAt = now;
-        if (track == "maintain") _soloLastMaintainAt = now;
-        if (track == "improve") _soloLastImproveAt = now;
-    }
-
-    private static readonly TimeSpan TopicTtl = TimeSpan.FromMinutes(35);
-
-    private int _soloRepeatHit = 0;
-    private int _soloAngle = 0;
-
-    private void MaybeExpireTopic()
-    {
-        if (_soloTopicMode != SoloTopicMode.FollowLastTopic) return;
-        if (DateTimeOffset.Now - _soloTopicSeedAt < TopicTtl) return;
-
-        _soloTopicMode = SoloTopicMode.FreePlay;
-        _soloTopicSeed = "";
-        _soloTopicSeedAt = DateTimeOffset.Now;
-
-        ((ChatViewModel)DataContext).Messages.Add(
-            new javis.Models.ChatMessage("assistant", "?? ÁÖÁ¦°¡ ¿À·¡µÇ¾î ÀÚÀ¯ ¸ğµå·Î ÀüÈ¯ÇÒ°Ô."));
-    }
-
-    private bool IsRepeatNote(string title, string body)
-    {
-        var sig = (title + "|" + body).Trim();
-        if (sig == _soloLastNoteSig)
-        {
-            _soloRepeatHit++;
-            return true;
-        }
-        _soloLastNoteSig = sig;
-        _soloRepeatHit = 0;
-        return false;
-    }
-
-    private int GetAngleIdAndAdvance()
-    {
-        var id = _soloAngle % 5;
-        _soloAngle++;
-        return id;
-    }
-
-    private static string AngleInstruction(int angleId)
-        => angleId switch
-        {
-            0 => "°üÂû/¿ä¾à: Áö±İ ÁÖÁ¦¸¦ 3~6¹®ÀåÀ¸·Î Á¤¸®",
-            1 => "¹İ·Ê/¸®½ºÅ©: Æ²¸± ¼ö ÀÖ´Â °¡Á¤, À§Çè¿ä¼Ò, ¹İ´ë±Ù°Å",
-            2 => "´ÙÀ½ Çàµ¿: ´çÀå ÇÒ ¼ö ÀÖ´Â 3°¡Áö ¾×¼Ç(±¸Ã¼Àû)",
-            3 => "ÀÚµ¿È­ °üÁ¡: ¹İº¹/ÀÚµ¿È­ °¡Ä¡°¡ ÀÖ´Â ºÎºĞ(½ºÅ³ ÈÄº¸ Æ÷ÇÔ)",
-            4 => "Áú¹® »ı¼º: ³»ÀÏ ÀÌ¾î°¥ Áú¹® 2~5°³",
-            _ => "°üÂû/¿ä¾à"
-        };
-
-    private string BuildSoloPrompt(
-        bool idle,
-        string track,
-        string newUserText,
-        string recentContext,
-        string skillSummaries,
-        string vaultSnippets,
-        string repeatCandidateBlock,
-        string topicMode,
-        string topicSeed)
-    {
-        var hasTopic = !string.IsNullOrWhiteSpace(topicSeed);
-        var hasSnippets = !(vaultSnippets?.Contains("¾øÀ½") ?? true) && !(vaultSnippets?.Contains("¾ø½À´Ï´Ù") ?? true);
-
-        var canonBlock = Host.Canon.BuildPromptBlock(query: (newUserText + " " + vaultSnippets + " " + topicSeed).Trim(), maxItems: 6);
-
-        var angleId = GetAngleIdAndAdvance();
-        var angleText = AngleInstruction(angleId);
-
-        return $$"""
-{Host.Persona.CoreText}
-
-{Host.Persona.SoloOverlayText}
-
-[CANON]
-{canonBlock}
-
-idle={idle}
-track={track}
-topic_mode={topicMode}
-has_topic={hasTopic}
-has_snippets={hasSnippets}
-
-angle_id={angleId}
-angle_rule={angleText}
-
-[TOPIC SEED]
-{(hasTopic ? topicSeed : "(¾øÀ½)")}
-
-[ÃÖ±Ù ´ëÈ­(Âü°í)]
-{recentContext}
-
-[»õ »ç¿ëÀÚ ÀÔ·Â(ÀÖÀ¸¸é ÀÌ°Í¸¸ ¹İÀÀ)]
-{newUserText}
-
-[¹İº¹ °¨Áö ÈÄº¸]
-{repeatCandidateBlock}
-
-[ÇöÀç ½ºÅ³]
-{skillSummaries}
-
-[ÃÖ±Ù ÀÚ·á ½º´ÏÆê]
-{vaultSnippets}
-
-ÇÙ½É ±ÔÄ¢:
-- "SOLO", "È°¼ºÈ­", "Á¾·á", "´Ù½Ã ´­·¯" °°Àº ¸ŞÅ¸ ¹®Àå/¾È³» ¹®Àå ±İÁö.
-- ÀÌ¹ø ÅÏÀº angle_ruleÀ» ¹İµå½Ã µû¸¥´Ù.
-
-- topic_mode=FollowLastTopicÀÌ¸é:
-  - idle=true¿©µµ TOPIC SEED¸¦ Áß½ÉÀ¸·Î È¥ÀÚ »ı°¢À» °è¼ÓÇÑ´Ù.
-  - È¥ÀÚ Åä·Ğ(ÀÚ¹®ÀÚ´ä/Âù¹İ)Àº say·Î ±æ°Ô ¶°µéÁö ¸»°í save_note·Î ³²±ä´Ù.
-- topic_mode=FreePlayÀÌ¸é:
-  - ¿ÜºÎ Àç·á ¾ø¾îµµ ÀÏ¹İÁö½Ä ±â¹İÀ¸·Î ¡°È¥ÀÚ ³î±â¡±¸¦ ÇÑ´Ù(¾ÆÀÌµğ¾î, ¼³°è, Á¡°Ë, ¹é·Î±×).
-- create_skillÀº ´ÙÀ½ Á¶°Ç¿¡¼­¸¸:
-  - ¹İº¹ °¨Áö ÈÄº¸°¡ ÀÖ°Å³ª
-  - TOPIC SEED¿¡ ´ëÇØ ¡°¹İº¹ÀûÀ¸·Î ÀÚµ¿È­ °¡Ä¡°¡ ¸íÈ®¡±ÇÒ ¶§
-- has_snippets=falseÀÌ°í has_topic=falseÀÌ¸é: sleep ¶Ç´Â maintain(run_skill) À§ÁÖ.
-
-Ãâ·ÂÀº JSON ÇÏ³ª¸¸:
-{
-  "intent": "say|save_note|run_skill|create_skill|sleep|stop",
-  "say": "sayÀÏ ¶§¸¸",
-  "note": {
-    "title": "ÂªÀº Á¦¸ñ",
-    "body": "2~10¹®Àå(ÇÊ¿äÇÏ¸é A:/B: ´ëÈ­ Çü½Ä °¡´É)",
-    "tags": ["..."],
-    "questions": ["..."]
-  },
-  "skill_id": "run_skillÀÏ ¶§¸¸",
-  "vars": { "k":"v" },
-  "requirement": "create_skillÀÏ ¶§¸¸",
-  "ms": 1200
-}
-
-stop ±ÔÄ¢:
-- stopÀº »ç¿ëÀÚ°¡ ¸í½ÃÀûÀ¸·Î Á¾·á¸¦ ¿äÃ»ÇÑ °æ¿ì¿¡¸¸.
-""";
-    }
-
-    private static readonly TimeSpan SoloLoopTick = TimeSpan.FromSeconds(10);
-
-    private readonly SemaphoreSlim _soloGenLock = new(1, 1);
-    private DateTimeOffset _soloLastGenStartedAt = DateTimeOffset.MinValue;
-
-    private async Task<bool> TryRunSoloGenerationAsync(Func<CancellationToken, Task> work, CancellationToken ct)
-    {
-        if (!await _soloGenLock.WaitAsync(0, ct))
-            return false;
-
-        try
-        {
-            _soloLastGenStartedAt = DateTimeOffset.Now;
-            await work(ct);
-            return true;
-        }
-        finally
-        {
-            _soloGenLock.Release();
-        }
-    }
-
-    private static async Task RunWithTimeoutAsync(Func<CancellationToken, Task> work, TimeSpan timeout, CancellationToken ct)
-    {
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(timeout);
-        await work(cts.Token);
-    }
-
-    private async Task SoloLoopAsync(CancellationToken ct)
-    {
-        const int MAX_STEPS = 500;
-        const int BASE_DELAY_MS = 650;
-        const int MAX_ERROR_STREAK = 5;
-
-        int step = 0;
-        int errorStreak = 0;
-
-        while (!ct.IsCancellationRequested && step < MAX_STEPS)
-        {
-            step++;
-
-            try
-            {
-                await UiAsync(() => MaybeExpireTopic());
-
-                SetSoloStatus("»ı°¢ Áß¡¦");
-
-                var (idle, newUserText, recentContext, topicMode, topicSeed) = await UiAsync(() => SnapshotSoloInputs());
-
-                await TryRunSoloGenerationAsync(async innerCt =>
+                // Hard lock: ensure no SOLO/DUO background loop is running
+                if (_soloOrch != null)
                 {
-                    await RunWithTimeoutAsync(async ct2 =>
-                    {
-                        var track = PickNextTrack(idle);
-
-                        if (idle)
-                            await Task.Delay(2000, ct2);
-
-                        var vaultSnippets = Host.VaultIndex.BuildSnippetsBlockForPrompt(6);
-                        var hasSnippets = !(vaultSnippets.Contains("¾øÀ½") || vaultSnippets.Contains("¾ø½À´Ï´Ù"));
-
-                        if (idle && !hasSnippets && track == "reflect")
-                            track = "maintain";
-
-                        var repeatCandidateBlock = "";
-
-                        var prompt = BuildSoloPrompt(
-                            idle, track, newUserText, recentContext,
-                            Host.GetSkillSummaries(),
-                            vaultSnippets,
-                            repeatCandidateBlock,
-                            topicMode,
-                            topicSeed
-                        );
-
-                        try { javis.App.Kernel?.Logger?.Log("solo.llm.request", new { step, idle, track }); } catch { }
-
-                        var raw = await Llm.GenerateAsync(prompt, ct2);
-                        var json = ExtractFirstJsonObject(raw);
-
-                        try { javis.App.Kernel?.Logger?.Log("solo.llm.response", new { step, idle, track, json }); } catch { }
-
-                        using var doc = JsonDocument.Parse(json);
-                        var root = doc.RootElement;
-
-                        var intent = root.TryGetProperty("intent", out var iEl) ? (iEl.GetString() ?? "say") : "say";
-
-                        if (intent == "say")
-                        {
-                            var text = root.TryGetProperty("say", out var sEl) ? (sEl.GetString() ?? "") : "";
-
-                            if (idle)
-                            {
-                                await Task.Delay(900, ct2);
-                                MarkTrack(track);
-                                return;
-                            }
-
-                            if (!string.IsNullOrWhiteSpace(text))
-                                await UiAsync(() => AppendAssistant($"??? {text}"));
-                        }
-                        else if (intent == "save_note")
-                        {
-                            if (!Host.SoloLimiter.CanWriteNow())
-                            {
-                                await Task.Delay(1200, ct2);
-                                MarkTrack(track);
-                                return;
-                            }
-
-                            var noteEl = root.GetProperty("note");
-                            var title = noteEl.TryGetProperty("title", out var tEl) ? (tEl.GetString() ?? "³ëÆ®") : "³ëÆ®";
-                            var body = noteEl.TryGetProperty("body", out var bEl) ? (bEl.GetString() ?? "") : "";
-
-                            if (IsRepeatNote(title, body))
-                            {
-                                if (_soloRepeatHit >= 2)
-                                {
-                                    _soloTopicMode = SoloTopicMode.FreePlay;
-                                    _soloTopicSeed = "";
-                                    _soloTopicSeedAt = DateTimeOffset.Now;
-                                }
-
-                                await Task.Delay(7000, ct2);
-                                return;
-                            }
-
-                            var tags = ReadStringArray(noteEl, "tags", 8, 40);
-                            var qs = ReadStringArray(noteEl, "questions", 4, 180);
-
-                            await Host.SoloNotes.AppendAsync("note", new { title, body, tags, questions = qs }, ct2);
-                            Host.SoloLimiter.MarkWrote();
-
-                            var shouldPromote = tags.Any(t => t.Equals("canon", StringComparison.OrdinalIgnoreCase));
-                            if (shouldPromote)
-                                await Host.Canon.AppendAsync(title, body, tags.ToArray(), kind: "promoted", ct: ct2);
-
-                            var chatText =
-                                $"?? [SOLO ³ëÆ®]\n{title}\n\n{TrimMax(body, 350)}" +
-                                (qs.Count > 0 ? "\n\n? Áú¹®\n- " + string.Join("\n- ", qs) : "") +
-                                (tags.Count > 0 ? "\n\n??? " + string.Join(", ", tags) : "");
-
-                            await UiAsync(() => AppendAssistant(chatText));
-                        }
-                        else if (intent == "run_skill")
-                        {
-                            var skillId = root.GetProperty("skill_id").GetString() ?? "";
-                            var vars = ReadVars(root);
-                            await UiAsync(() => AppendAssistant($"?? (solo) ½ºÅ³ ½ÇÇà: {skillId}"));
-                            await Host.RunSkillByIdAsync(skillId, vars, ct2);
-                        }
-                        else if (intent == "create_skill")
-                        {
-                            var now = DateTimeOffset.Now;
-                            if (_soloCreateCount >= MAX_CREATES_PER_SESSION || (now - _soloLastCreateAt) < CreateCooldown)
-                            {
-                                await UiAsync(() => AppendAssistant("?? (solo) ±â´É »ı¼ºÀº Àá±ñ ½¬°í, ¾ÆÀÌµğ¾î´Â ³ëÆ®·Î ÃàÀûÇÒ°Ô."));
-                                MarkTrack(track);
-                                return;
-                            }
-
-                            var req = root.GetProperty("requirement").GetString() ?? "";
-                            await UiAsync(() => AppendAssistant($"??? (solo) ±â´É »ı¼º: {req}"));
-
-                            var (skillFile, pluginFile) = await Host.CreateSkillAsync(req);
-                            _soloCreateCount++;
-                            _soloLastCreateAt = now;
-
-                            await UiAsync(() => AppendAssistant(
-                                pluginFile is null
-                                    ? $"? »ı¼º ¿Ï·á: {skillFile}"
-                                    : $"? »ı¼º ¿Ï·á: {skillFile} (+ {pluginFile})"));
-                        }
-                        else if (intent == "sleep")
-                        {
-                            var ms = root.TryGetProperty("ms", out var msEl) ? msEl.GetInt32() : 0;
-                            ms = Math.Clamp(ms, 3000, 55_000);
-                            SetSoloStatus($"´ë±â {ms}ms¡¦");
-                            await Task.Delay(ms, ct2);
-                        }
-                        else if (intent == "stop")
-                        {
-                            await UiAsync(() => AppendAssistant("(solo) ÀÚÃ¼ Á¾·áÇÒ°Ô."));
-                            await UiAsync(() => SoloToggle.IsChecked = false);
-                        }
-                        else
-                        {
-                            await UiAsync(() => AppendAssistant($"(solo) ¾Ë ¼ö ¾ø´Â intent: {intent}"));
-                        }
-
-                        MarkTrack(track);
-                    }, TimeSpan.FromSeconds(90), innerCt);
-                }, ct);
-
-                errorStreak = 0;
-                await Task.Delay(SoloLoopTick, ct);
-            }
-            catch (OperationCanceledException) { break; }
-            catch (Exception ex)
-            {
-                errorStreak++;
-                await UiAsync(() => AppendAssistant($"(solo ¿À·ù) {ex.Message}"));
-                SetSoloStatus($"¿À·ù ({errorStreak}/{MAX_ERROR_STREAK})");
-
-                try { javis.App.Kernel?.Logger?.Log("solo.error", new { step, error = ex.Message, stack = ex.ToString() }); } catch { }
-
-                if (errorStreak >= MAX_ERROR_STREAK)
-                {
-                    await UiAsync(() => AppendAssistant("¿À·ù°¡ ¹İº¹µÇ¾î SOLO¸¦ ÀÚµ¿ Á¾·áÇÕ´Ï´Ù."));
-                    await UiAsync(() => SoloToggle.IsChecked = false);
-                    break;
+                    try { await _soloOrch.StopAsync(); } catch { }
                 }
 
-                await Task.Delay(1200, ct);
-            }
+                try { _duoCts?.Cancel(); } catch { }
+                try { if (_duoTask != null) await _duoTask; } catch { }
+
+                _debateShow = false;
+                _forceDebate = false;
+
+                if (SoloToggle != null) SoloToggle.IsChecked = false;
+                if (DuoToggle != null) DuoToggle.IsChecked = false;
+
+                if (RoomTabsPanel != null) RoomTabsPanel.Visibility = Visibility.Collapsed;
+                if (BigModeButtonsPanel != null) BigModeButtonsPanel.Visibility = Visibility.Collapsed;
+                break;
+
+            case ChatMode.SoloThink:
+                vm.SelectedRoom = javis.ViewModels.ChatRoom.Solo;
+                RoomSolo_Click(this, new RoutedEventArgs());
+                if (SoloToggle != null) SoloToggle.IsChecked = true;
+                if (DuoToggle != null) DuoToggle.IsChecked = false;
+
+                if (RoomTabsPanel != null) RoomTabsPanel.Visibility = Visibility.Collapsed;
+                break;
+
+            case ChatMode.DuoDebate:
+                vm.SelectedRoom = javis.ViewModels.ChatRoom.Duo;
+                RoomDuo_Click(this, new RoutedEventArgs());
+                if (SoloToggle != null) SoloToggle.IsChecked = true;
+                if (DuoToggle != null) DuoToggle.IsChecked = true;
+
+                if (RoomTabsPanel != null) RoomTabsPanel.Visibility = Visibility.Collapsed;
+                break;
         }
 
-        if (step >= MAX_STEPS)
+        // In mode pages, room is fixed; hide room tabs to simplify UX.
+        if (RoomMainTab != null) RoomMainTab.Visibility = Visibility.Collapsed;
+        if (RoomSoloTab != null) RoomSoloTab.Visibility = Visibility.Collapsed;
+        if (RoomDuoTab != null) RoomDuoTab.Visibility = Visibility.Collapsed;
+
+        // Hide execution toggles on Main chat page (optional, keeps UX clean)
+        if (_mode == ChatMode.MainChat)
         {
-            await UiAsync(() => AppendAssistant($"SOLO ÃÖ´ë ¹İº¹({MAX_STEPS}) µµ´Ş·Î ÀÚµ¿ Á¾·áÇÕ´Ï´Ù."));
-            await UiAsync(() => SoloToggle.IsChecked = false);
+            if (SoloToggle != null) SoloToggle.Visibility = Visibility.Collapsed;
+            if (DuoToggle != null) DuoToggle.Visibility = Visibility.Collapsed;
         }
     }
 
-    private static Dictionary<string, string> ReadVars(JsonElement root)
+    private async void ChatPage_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        var vars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        if (root.TryGetProperty("vars", out var varsEl) && varsEl.ValueKind == JsonValueKind.Object)
+        try
         {
-            foreach (var p in varsEl.EnumerateObject())
-                vars[p.Name] = p.Value.ValueKind == JsonValueKind.String ? (p.Value.GetString() ?? "") : p.Value.ToString();
+            if (_mode != ChatMode.MainChat) return;
+            if (e.NewValue is bool b && b == false)
+                await SaveMainChatHistoryIfNeededAsync("hidden", CancellationToken.None);
         }
-
-        return vars;
-    }
-
-    private static string ExtractFirstJsonObject(string s)
-    {
-        var start = s.IndexOf('{');
-        if (start < 0) throw new Exception("JSON \uC2DC\uC791 '{' \uC5C6\uC74C");
-
-        int depth = 0;
-        for (int i = start; i < s.Length; i++)
+        catch
         {
-            if (s[i] == '{') depth++;
-            else if (s[i] == '}')
-            {
-                depth--;
-                if (depth == 0) return s.Substring(start, i - start + 1);
-            }
+            // never crash on visibility change
         }
-        throw new Exception("JSON \uCD94\uCD9C \uC2E4\uD328");
     }
 
-    private static Task UiAsync(Action a)
-        => Application.Current.Dispatcher.InvokeAsync(a, DispatcherPriority.Background).Task;
-
-    private static Task<T> UiAsync<T>(Func<T> f)
-        => Application.Current.Dispatcher.InvokeAsync(f, DispatcherPriority.Background).Task;
-
-    private async void InputBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    private void AppendAssistant(string text)
     {
-        if (e.Key != Key.Enter) return;
-
-        // Shift+Enter => ÁÙ¹Ù²Ş Çã¿ë
-        if (Keyboard.Modifiers == ModifierKeys.Shift)
-            return;
-
-        // Enter => Àü¼Û
-        e.Handled = true;
-
-        // Busy°Å³ª ºó ÀÔ·ÂÀÌ¸é ¹«½Ã
-        if (_vm.IsBusy) return;
-        if (string.IsNullOrWhiteSpace(_vm.InputText)) return;
-
-        await _vm.SendAsync();
+        ChatBus.Send(ChatTextUtil.SanitizeUiText(text));
     }
 
-    private void ScrollToEnd()
+    private void AddImmediate(string role, string text)
     {
-        Dispatcher.InvokeAsync(() =>
+        var vm = (ChatViewModel)DataContext;
+        vm.MainMessages.Add(new javis.Models.ChatMessage(role, ChatTextUtil.SanitizeUiText(text)));
+    }
+
+    private void AddImmediate(javis.ViewModels.ChatRoom room, string role, string text)
+    {
+        var vm = (ChatViewModel)DataContext;
+        vm.GetRoom(room).Add(new javis.Models.ChatMessage(role, ChatTextUtil.SanitizeUiText(text)));
+    }
+
+    private void SetSoloStatus(string text)
+        => _ = UiAsync(() =>
         {
-            if (ChatList.Items.Count > 0)
-                ChatList.ScrollIntoView(ChatList.Items[^1]);
+            if (SoloStatusText == null) return;
+            SoloStatusText.Text = ChatTextUtil.SanitizeUiText(text ?? "");
         });
+
+    private async void ChatPage_Unloaded(object sender, RoutedEventArgs e)
+    {
+        ChatBus.MessageQueued -= OnBusMessage;
+
+        try { await SaveMainChatHistoryIfNeededAsync("unloaded", CancellationToken.None); } catch { }
+
+        try { _duoCts?.Cancel(); } catch { }
+        try { if (_duoTask != null) await _duoTask; } catch { }
+        try { _duoCts?.Dispose(); } catch { }
+        _duoCts = null;
+        _duoTask = null;
+
+        if (_soloOrch != null)
+            _ = _soloOrch.DisposeAsync();
     }
 
-    private JarvisKernel Kernel => javis.App.Kernel;
+    private void EnsureSoloOrchestrator()
+    {
+        if (_soloOrch != null) return;
+
+        var sink = new ChatPageSoloUiSink(
+            Dispatcher,
+            addMessage: (room, role, text) =>
+            {
+                var vm = (ChatViewModel)DataContext;
+                vm.GetRoom(room).Add(new javis.Models.ChatMessage(role, ChatTextUtil.SanitizeUiText(text)));
+                return true;
+            },
+            appendDebug: (t) => { /* keep debug quiet by default */ });
+
+        var backend = new ChatPageSoloBackendAdapter(SoloProcessOneTurnAsync);
+        _soloOrch = new SoloOrchestrator(sink, backend);
+    }
+
+    private void DuoToggle_Checked(object sender, RoutedEventArgs e)
+    {
+        _debateShow = true;
+        _forceDebate = true;
+
+        if (SoloToggle.IsChecked != true)
+            SoloToggle.IsChecked = true;
+    }
+
+    private void DuoToggle_Unchecked(object sender, RoutedEventArgs e)
+    {
+        _debateShow = false;
+        _forceDebate = false;
+    }
 
     private void OpenPersonaFolder_Click(object sender, RoutedEventArgs e)
     {
@@ -737,16 +240,16 @@ stop ±ÔÄ¢:
             UseShellExecute = true
         });
 
-        ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"\uD83D\uDCC2 Persona folder opened: {dir}"));
+        ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"ğŸ“‚ Persona folder opened: {dir}"));
     }
 
     private void ReloadPersona_Click(object sender, RoutedEventArgs e)
     {
         Kernel.Persona.Reload();
 
-        ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage(
+        ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage(
             "assistant",
-            "\u2705 Persona reloaded (core/chat/solo txt)"
+            "âœ… Persona reloaded (core/chat/solo txt)"
         ));
     }
 
@@ -764,29 +267,28 @@ stop ±ÔÄ¢:
 
         if (dlg.ShowDialog() != true) return;
 
-        ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"? Importing {dlg.FileNames.Length} files..."));
+        ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"â³ Importing {dlg.FileNames.Length} files..."));
 
         try
         {
             var imported = await Kernel.Vault.ImportAsync(dlg.FileNames);
-
             var indexedCount = await Kernel.VaultIndex.IndexNewAsync(imported, maxFiles: 10);
 
-            ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"?? Indexed: {indexedCount} files"));
+            ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"ğŸ” Indexed: {indexedCount} files"));
 
             var lines = imported
                 .Select(x => $"- {x.fileName} ({x.sizeBytes} bytes, {x.ext})")
                 .ToList();
 
-            ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage(
+            ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage(
                 "assistant",
-                "\u2705 Import complete\n" + string.Join("\n", lines) +
+                "âœ… Import complete\n" + string.Join("\n", lines) +
                 $"\n\nSaved to: {Kernel.Vault.InboxDir}"
             ));
         }
         catch (Exception ex)
         {
-            ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"? Import failed: {ex.Message}"));
+            ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"âŒ Import failed: {ex.Message}"));
         }
     }
 
@@ -797,18 +299,18 @@ stop ±ÔÄ¢:
         var files = (string[]?)e.Data.GetData(DataFormats.FileDrop);
         if (files == null || files.Length == 0) return;
 
-        ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"\u23F3 Importing dropped files ({files.Length})..."));
+        ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"â³ Importing dropped files ({files.Length})..."));
 
         try
         {
             var imported = await Kernel.Vault.ImportAsync(files);
             var indexedCount = await Kernel.VaultIndex.IndexNewAsync(imported, maxFiles: 10);
-            ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"\uD83D\uDD0E Indexed: {indexedCount} files"));
-            ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"\u2705 Dropped files saved to: {Kernel.Vault.InboxDir}"));
+            ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"ğŸ” Indexed: {indexedCount} files"));
+            ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"âœ… Dropped files saved to: {Kernel.Vault.InboxDir}"));
         }
         catch (Exception ex)
         {
-            ((ChatViewModel)DataContext).Messages.Add(new javis.Models.ChatMessage("assistant", $"? Drop import failed: {ex.Message}"));
+            ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"âŒ Drop import failed: {ex.Message}"));
         }
     }
 
@@ -816,7 +318,7 @@ stop ±ÔÄ¢:
     {
         var dlg = new SaveFileDialog
         {
-            Title = "SFT µ¥ÀÌÅÍ¼Â ÀúÀå",
+            Title = "SFT ë°ì´í„°ì…‹ ì €ì¥",
             Filter = "JSONL (*.jsonl)|*.jsonl",
             FileName = $"jarvis-sft-{DateTime.Now:yyyyMMdd-HHmmss}.jsonl"
         };
@@ -824,7 +326,7 @@ stop ±ÔÄ¢:
         if (dlg.ShowDialog() != true) return;
 
         var vm = (ChatViewModel)DataContext;
-        vm.Messages.Add(new javis.Models.ChatMessage("assistant", "? SFT µ¥ÀÌÅÍ¼Â »ı¼º Áß¡¦"));
+        vm.MainMessages.Add(new javis.Models.ChatMessage("assistant", "â³ SFT ë°ì´í„°ì…‹ ì €ì¥ ì¤‘..."));
 
         try
         {
@@ -836,32 +338,166 @@ stop ±ÔÄ¢:
                 maxNotesItems: 400,
                 ct: CancellationToken.None);
 
-            vm.Messages.Add(new javis.Models.ChatMessage("assistant", $"? SFT »ı¼º ¿Ï·á: {n} samples\n{dlg.FileName}"));
+            vm.MainMessages.Add(new javis.Models.ChatMessage("assistant", $"âœ… SFT ì €ì¥ ì™„ë£Œ: {n} samples\n{dlg.FileName}"));
         }
         catch (Exception ex)
         {
-            vm.Messages.Add(new javis.Models.ChatMessage("assistant", $"? SFT »ı¼º ½ÇÆĞ: {ex.Message}"));
+            vm.MainMessages.Add(new javis.Models.ChatMessage("assistant", $"âŒ SFT ì €ì¥ ì‹¤íŒ¨: {ex.Message}"));
         }
     }
 
-    static string TrimMax(string s, int max)
+    private void RoomMain_Click(object sender, RoutedEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(s)) return "";
-        s = s.Trim();
-        return s.Length <= max ? s : s.Substring(0, max) + "¡¦";
+        var vm = (ChatViewModel)DataContext;
+        vm.SelectedRoom = javis.ViewModels.ChatRoom.Main;
+        RoomMainTab.IsChecked = true;
+        RoomSoloTab.IsChecked = false;
+        RoomDuoTab.IsChecked = false;
     }
 
-    static List<string> ReadStringArray(JsonElement root, string name, int take, int maxLen)
+    private void RoomSolo_Click(object sender, RoutedEventArgs e)
     {
-        var list = new List<string>();
-        if (!root.TryGetProperty(name, out var el) || el.ValueKind != JsonValueKind.Array) return list;
-        foreach (var it in el.EnumerateArray())
+        var vm = (ChatViewModel)DataContext;
+        vm.SelectedRoom = javis.ViewModels.ChatRoom.Solo;
+        RoomMainTab.IsChecked = false;
+        RoomSoloTab.IsChecked = true;
+        RoomDuoTab.IsChecked = false;
+    }
+
+    private void RoomDuo_Click(object sender, RoutedEventArgs e)
+    {
+        var vm = (ChatViewModel)DataContext;
+        vm.SelectedRoom = javis.ViewModels.ChatRoom.Duo;
+        RoomMainTab.IsChecked = false;
+        RoomSoloTab.IsChecked = false;
+        RoomDuoTab.IsChecked = true;
+    }
+
+    private static javis.Services.History.ChatMessageDto ToDto(javis.Models.ChatMessage m)
+        => new()
         {
-            var s = it.ValueKind == JsonValueKind.String ? (it.GetString() ?? "") : it.ToString();
-            s = TrimMax(s, maxLen);
-            if (!string.IsNullOrWhiteSpace(s)) list.Add(s);
-            if (list.Count >= take) break;
+            Role = m.Role ?? "",
+            Text = m.Text ?? "",
+            Ts = new DateTimeOffset(m.CreatedAt)
+        };
+
+    private javis.Services.History.ChatHistoryStore CreateMainChatHistoryStore()
+    {
+        var dataDir = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Jarvis");
+
+        return new javis.Services.History.ChatHistoryStore(dataDir);
+    }
+
+    private string BuildHistoryTitleFast(IReadOnlyList<javis.Models.ChatMessage> msgs)
+    {
+        var firstUser = msgs.FirstOrDefault(m => string.Equals(m.Role, "user", StringComparison.OrdinalIgnoreCase))?.Text ?? "";
+        firstUser = (firstUser ?? "").Replace("\r", " ").Replace("\n", " ").Trim();
+        if (firstUser.Length > 42) firstUser = firstUser.Substring(0, 42);
+
+        if (string.IsNullOrWhiteSpace(firstUser))
+            return $"{_mainChatStartedAt:MM/dd HH:mm} ëŒ€í™”";
+
+        return firstUser;
+    }
+
+    private async Task SaveMainChatHistoryIfNeededAsync(string reason, CancellationToken ct = default)
+    {
+        if (_mode != ChatMode.MainChat) return;
+
+        // gate: prevent re-entry / duplication across Back+Unloaded
+        if (System.Threading.Interlocked.CompareExchange(ref _mainChatSaveGate, 1, 0) != 0)
+            return;
+
+        try
+        {
+            var vm = (ChatViewModel)DataContext;
+
+            // UI thread snapshot to avoid cross-thread access
+            var snapshot = await UiAsync(() => vm.MainMessages.ToList());
+            if (snapshot.Count == 0) return;
+
+            static string Clean(string? s)
+                => (s ?? "").Replace("\u200B", "").Trim();
+
+            // remove empty/placeholder msgs (prevents blank bubbles & empty sessions)
+            snapshot = snapshot
+                .Select(m => new javis.Models.ChatMessage(m.Role ?? "", Clean(m.Text)))
+                .Where(m => !string.IsNullOrWhiteSpace(m.Text))
+                .ToList();
+
+            if (snapshot.Count == 0) return;
+
+            // skip trivial sessions (at least one user message)
+            if (!snapshot.Any(m => string.Equals(m.Role, "user", StringComparison.OrdinalIgnoreCase))) return;
+
+            var title = BuildHistoryTitleFast(snapshot);
+
+            var store = CreateMainChatHistoryStore();
+            var dto = snapshot.Select(ToDto).ToList();
+
+            var id = _mainChatSessionId ?? DateTimeOffset.Now.ToString("yyyyMMdd_HHmmss_fff");
+            await store.SaveOrUpdateSessionAsync(id, title, _mainChatStartedAt, dto, ct);
         }
-        return list;
+        catch
+        {
+            // never block navigation on history save failure
+        }
+    }
+
+    private async void Back_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await SaveMainChatHistoryIfNeededAsync("back", CancellationToken.None);
+
+            if (NavigationService?.CanGoBack == true)
+            {
+                NavigationService.GoBack();
+                return;
+            }
+
+            NavigationService?.Navigate(new ChatEntryPage());
+        }
+        catch
+        {
+            // never crash on navigation
+        }
+    }
+
+    private void MainHistory_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            NavigationService?.Navigate(new MainChatHistoryPage());
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private void ApplyTopic_Click(object sender, RoutedEventArgs e)
+    {
+        var vm = (ChatViewModel)DataContext;
+
+        var topic = (vm.Topic ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(topic))
+        {
+            AddImmediate("assistant", "ì£¼ì œë¥¼ ì…ë ¥í•´ì¤˜.");
+            return;
+        }
+
+        if (!vm.SetTopicOnce(topic))
+        {
+            AddImmediate("assistant", "ì£¼ì œëŠ” ì´ë¯¸ ì„¤ì •ëì–´. ë°”ê¾¸ë ¤ë©´ ìƒˆ ëŒ€í™”ë¥¼ ì‹œì‘í•´ì¤˜.");
+            return;
+        }
+
+        if (TopicBox != null) TopicBox.IsEnabled = false;
+        if (sender is Button b) b.IsEnabled = false;
+
+        AddImmediate("assistant", $"âœ… ì£¼ì œ ê³ ì •: {topic}\nì´ì œ ì´ ëŒ€í™”ëŠ” í•´ë‹¹ ì£¼ì œë¡œë§Œ ì§„í–‰í• ê²Œ.");
     }
 }
