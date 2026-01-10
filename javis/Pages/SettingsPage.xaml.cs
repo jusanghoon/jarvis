@@ -26,4 +26,16 @@ public partial class SettingsPage : Page
             // ignore
         }
     }
+
+    private void Updates_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            NavigationService?.Navigate(new UpdatesPage());
+        }
+        catch
+        {
+            // ignore
+        }
+    }
 }

@@ -38,6 +38,14 @@ public partial class SkillsViewModel : ObservableObject
     {
         var m = skill.Manifest;
 
+        try
+        {
+            var id = m.Id ?? m.Name ?? "skill";
+            javis.Services.MainAi.MainAiEventBus.Publish(
+                new javis.Services.MainAi.ProgramEventObserved(DateTimeOffset.Now, $"[skill.run] {id}", "skill.run"));
+        }
+        catch { }
+
         if (m.Type == "prompt")
         {
             var text = m.Prompt ?? m.Description ?? m.Name;

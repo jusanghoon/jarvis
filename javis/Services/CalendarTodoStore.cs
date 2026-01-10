@@ -13,12 +13,23 @@ public sealed class CalendarTodoStore
     private readonly object _lock = new();
 
     public CalendarTodoStore()
-    {
-        var dir = Path.Combine(
+        : this(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Jarvis");
-        Directory.CreateDirectory(dir);
+            "Jarvis"))
+    {
+    }
 
+    public CalendarTodoStore(string dataDir)
+    {
+        var dir = (dataDir ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(dir))
+        {
+            dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Jarvis");
+        }
+
+        Directory.CreateDirectory(dir);
         _filePath = Path.Combine(dir, "calendar_todos.json");
     }
 
@@ -44,7 +55,7 @@ public sealed class CalendarTodoStore
         lock (_lock)
         {
             var json = JsonSerializer.Serialize(items, JsonOpts);
-            File.WriteAllText(_filePath, json);
+            File.WriteAllText(_filePath, json, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         }
     }
 

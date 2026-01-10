@@ -12,13 +12,27 @@ namespace javis.ViewModels;
 
 public partial class HomeViewModel : ObservableObject
 {
-    private readonly CalendarTodoStore _store = new();
+    private CalendarTodoStore _store;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
 
     public HomeViewModel()
     {
+        _store = new CalendarTodoStore(UserProfileService.Instance.ActiveUserDataDir);
+
+        UserReloadBus.ActiveUserChanged += _ =>
+        {
+            try { _store = new CalendarTodoStore(UserProfileService.Instance.ActiveUserDataDir); } catch { }
+            var _ignore = Refresh();
+        };
+
+        TodoBus.Changed += () =>
+        {
+            // best-effort refresh; avoid blocking UI
+            var _ignore = Refresh();
+        };
+
         SelectedDate = DateTime.Today;
-        _ = Refresh();
+        var _ignore2 = Refresh();
     }
 
     [ObservableProperty]

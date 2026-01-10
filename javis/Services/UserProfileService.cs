@@ -11,8 +11,10 @@ public sealed partial class UserProfileService : ObservableObject
 {
     public static UserProfileService Instance { get; } = new();
 
+    public event Action<string>? ProfileChanged;
+
     private readonly string _dataDir;
-    private readonly string _profilesDir;
+    private readonly string _registryDir;
     private readonly string _activePath;
 
     private readonly JsonSerializerOptions _jsonOpt = new()
@@ -30,19 +32,21 @@ public sealed partial class UserProfileService : ObservableObject
     private UserProfileService()
     {
         _dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Jarvis");
-        _profilesDir = Path.Combine(_dataDir, "profiles");
-        _activePath = Path.Combine(_profilesDir, "active.json");
 
-        Directory.CreateDirectory(_profilesDir);
+        // global registry (active user + list)
+        _registryDir = Path.Combine(_dataDir, "profiles");
+        _activePath = Path.Combine(_registryDir, "active.json");
+
+        Directory.CreateDirectory(_registryDir);
         LoadActive();
     }
 
     public IReadOnlyList<UserProfile> ListProfiles()
     {
-        Directory.CreateDirectory(_profilesDir);
+        Directory.CreateDirectory(_registryDir);
 
         var list = new List<UserProfile>();
-        foreach (var file in Directory.EnumerateFiles(_profilesDir, "*.profile.json"))
+        foreach (var file in Directory.EnumerateFiles(_registryDir, "*.profile.json"))
         {
             try
             {
@@ -65,8 +69,12 @@ public sealed partial class UserProfileService : ObservableObject
         var id = Guid.NewGuid().ToString("N");
         var profile = new UserProfile(id, name, DateTimeOffset.Now);
 
-        var path = ProfilePath(id);
-        File.WriteAllText(path, JsonSerializer.Serialize(profile, _jsonOpt));
+        File.WriteAllText(ProfilePath(id), JsonSerializer.Serialize(profile, _jsonOpt));
+
+        // registry snapshot for listing
+        Directory.CreateDirectory(_registryDir);
+        File.WriteAllText(Path.Combine(_registryDir, id + ".profile.json"), JsonSerializer.Serialize(profile, _jsonOpt));
+
         return profile;
     }
 
@@ -75,21 +83,38 @@ public sealed partial class UserProfileService : ObservableObject
         var id = (userId ?? string.Empty).Trim();
         if (id.Length == 0) return;
 
-        Directory.CreateDirectory(_profilesDir);
+        Directory.CreateDirectory(_registryDir);
         File.WriteAllText(_activePath, JsonSerializer.Serialize(new ActiveUserState(id), _jsonOpt));
 
         ActiveUserId = id;
         RefreshActiveUserName();
+
+        try { ProfileChanged?.Invoke(id); } catch { }
+        try { UserReloadBus.PublishActiveUserChanged(id); } catch { }
     }
 
     public UserProfile EnsureDefaultProfile()
     {
         var existing = ListProfiles().ToList();
         var def = existing.FirstOrDefault(p => p.Id == "default");
-        if (def != null) return def;
+        if (def != null)
+        {
+            // ensure isolated profile file exists
+            try
+            {
+                if (!File.Exists(ProfilePath(def.Id)))
+                    File.WriteAllText(ProfilePath(def.Id), JsonSerializer.Serialize(def, _jsonOpt));
+            }
+            catch { }
+            return def;
+        }
 
         var profile = new UserProfile("default", "Default", DateTimeOffset.Now);
+
         File.WriteAllText(ProfilePath(profile.Id), JsonSerializer.Serialize(profile, _jsonOpt));
+        Directory.CreateDirectory(_registryDir);
+        File.WriteAllText(Path.Combine(_registryDir, profile.Id + ".profile.json"), JsonSerializer.Serialize(profile, _jsonOpt));
+
         return profile;
     }
 
@@ -134,13 +159,24 @@ public sealed partial class UserProfileService : ObservableObject
     {
         if (profile is null) return;
 
-        Directory.CreateDirectory(_profilesDir);
+        Directory.CreateDirectory(_registryDir);
+
+        // isolated profile
         File.WriteAllText(ProfilePath(profile.Id), JsonSerializer.Serialize(profile, _jsonOpt));
+
+        // registry snapshot for listing
+        try
+        {
+            File.WriteAllText(Path.Combine(_registryDir, profile.Id + ".profile.json"), JsonSerializer.Serialize(profile, _jsonOpt));
+        }
+        catch { }
 
         if (string.Equals(profile.Id, ActiveUserId, StringComparison.OrdinalIgnoreCase))
         {
             ActiveUserName = profile.DisplayName;
         }
+
+        try { ProfileChanged?.Invoke(profile.Id); } catch { }
     }
 
     private void LoadActive()
@@ -180,7 +216,13 @@ public sealed partial class UserProfileService : ObservableObject
         }
     }
 
-    private string ProfilePath(string id) => Path.Combine(_profilesDir, id + ".profile.json");
+    private string ProfilePath(string id)
+    {
+        var userRoot = GetUserDataDir(id);
+        var dir = Path.Combine(userRoot, "profile");
+        Directory.CreateDirectory(dir);
+        return Path.Combine(dir, "profile.json");
+    }
 
     private sealed record ActiveUserState(string ActiveUserId);
 
@@ -190,7 +232,7 @@ public sealed partial class UserProfileService : ObservableObject
 
         try
         {
-            var store = new javis.Services.History.ChatHistoryStore(_dataDir);
+            var store = new javis.Services.History.ChatHistoryStore(ActiveUserDataDir);
             var sessions = store.ListSessions(max: maxSessions);
 
             foreach (var s in sessions)
@@ -329,13 +371,28 @@ public sealed partial class UserProfileService : ObservableObject
 
         File.WriteAllText(path, string.Join("\n", lines));
     }
+
+    public string GetUserDataDir(string userId)
+    {
+        var id = (userId ?? string.Empty).Trim();
+        if (id.Length == 0) id = "default";
+
+        var dir = Path.Combine(_dataDir, "users", id);
+        Directory.CreateDirectory(dir);
+        return dir;
+    }
+
+    public string ActiveUserDataDir => GetUserDataDir(ActiveUserId);
 }
 
 public sealed record UserProfile(string Id, string DisplayName, DateTimeOffset CreatedAt)
 {
     public Dictionary<string, string> Fields { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public string ToReportText()
+    private static bool IsSourceKey(string key)
+        => key.EndsWith("_source", StringComparison.OrdinalIgnoreCase);
+
+    public string ToReportText(bool includeSources = false)
     {
         var lines = new List<string>
         {
@@ -346,7 +403,12 @@ public sealed record UserProfile(string Id, string DisplayName, DateTimeOffset C
         };
 
         foreach (var kv in Fields.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!includeSources && IsSourceKey(kv.Key))
+                continue;
+
             lines.Add($"{kv.Key}: {kv.Value}".TrimEnd());
+        }
 
         return string.Join("\n", lines);
     }
@@ -371,6 +433,13 @@ public sealed record UserProfile(string Id, string DisplayName, DateTimeOffset C
 
             if (key.Length == 0) continue;
             dict[key] = val;
+        }
+
+        // keep existing sources unless user explicitly typed them
+        foreach (var kv in Fields)
+        {
+            if (IsSourceKey(kv.Key) && !dict.ContainsKey(kv.Key))
+                dict[kv.Key] = kv.Value;
         }
 
         return this with { Fields = dict };

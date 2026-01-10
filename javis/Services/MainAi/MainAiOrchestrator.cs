@@ -11,6 +11,11 @@ public sealed class MainAiOrchestrator : IDisposable
     public static MainAiOrchestrator Instance { get; } = new();
 
     private const string MainAiModel = "qwen3:4b";
+    private const string OllamaBaseUrl = "http://localhost:11434";
+
+    private static readonly TimeSpan MainAiWorkTimeout = TimeSpan.FromSeconds(18);
+
+    private readonly MainAiProfileExtractor _extractor;
 
     private readonly ConcurrentQueue<MainAiEvent> _q = new();
     private readonly AutoResetEvent _signal = new(false);
@@ -26,9 +31,17 @@ public sealed class MainAiOrchestrator : IDisposable
 
     private DateTimeOffset _lastUserMsgAt = DateTimeOffset.MinValue;
     private string _lastUserMsg = "";
+    private string _lastProcessedUserMsg = "";
+    private (string kind, DateTimeOffset at, string text) _pending = ("", DateTimeOffset.MinValue, "");
+
+    private readonly System.Collections.Generic.Dictionary<string, DateTimeOffset> _lastKindAt =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly TimeSpan KindCooldown = TimeSpan.FromMinutes(2);
 
     private MainAiOrchestrator()
     {
+        _extractor = new MainAiProfileExtractor(OllamaBaseUrl, MainAiModel);
     }
 
     public void Start()
@@ -70,8 +83,10 @@ public sealed class MainAiOrchestrator : IDisposable
                         System.Threading.Interlocked.Exchange(ref _chatBusy, 0);
                         break;
                     case ChatUserMessageObserved um:
-                        _lastUserMsgAt = um.At;
-                        _lastUserMsg = um.Text;
+                        _pending = ("chat.user", um.At, um.Text);
+                        break;
+                    case ProgramEventObserved pe:
+                        _pending = (pe.Kind ?? "program", pe.At, pe.Text);
                         break;
                 }
             }
@@ -81,17 +96,16 @@ public sealed class MainAiOrchestrator : IDisposable
                 ? BusyDebounce
                 : IdleDebounce;
 
-            if (_lastUserMsgAt == DateTimeOffset.MinValue) continue;
-            if (DateTimeOffset.Now - _lastUserMsgAt < debounce) continue;
+            if (_pending.at == DateTimeOffset.MinValue) continue;
+            if (DateTimeOffset.Now - _pending.at < debounce) continue;
 
-            // run one background job at a time
-            var msg = _lastUserMsg;
-            _lastUserMsgAt = DateTimeOffset.MinValue;
-            _lastUserMsg = "";
+            var kind = _pending.kind;
+            var msg = _pending.text;
+            _pending = ("", DateTimeOffset.MinValue, "");
 
             try
             {
-                await RunProfileExtractionAsync(msg, ct);
+                await RunProfileExtractionAsync(kind, msg, ct);
             }
             catch
             {
@@ -100,26 +114,85 @@ public sealed class MainAiOrchestrator : IDisposable
         }
     }
 
-    private static async Task RunProfileExtractionAsync(string lastUserMsg, CancellationToken ct)
+    private async Task RunProfileExtractionAsync(string kind, string text, CancellationToken ct)
     {
-        // Placeholder for LLM-backed extraction.
-        // For now, we only record the observation into fields as "최근 발화" to prove pipeline.
-        // (LLM integration will be added next)
+        kind = (kind ?? "").Trim();
+        text = (text ?? "").Trim();
+        if (text.Length == 0) return;
 
-        await Task.Yield();
-        ct.ThrowIfCancellationRequested();
+        if (kind.Length > 0)
+        {
+            if (_lastKindAt.TryGetValue(kind, out var last) && DateTimeOffset.Now - last < KindCooldown)
+                return;
+        }
+
+        if (string.Equals(_lastProcessedUserMsg, text, StringComparison.Ordinal))
+            return;
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(MainAiWorkTimeout);
 
         var svc = UserProfileService.Instance;
         var p = svc.TryGetActiveProfile();
         if (p == null) return;
 
-        var fields = new System.Collections.Generic.Dictionary<string, string>(p.Fields, StringComparer.OrdinalIgnoreCase)
+        Dictionary<string, string> extracted;
+        try
         {
-            ["최근 발화"] = lastUserMsg,
-            ["main_ai_model"] = MainAiModel
-        };
+            extracted = await _extractor.ExtractSafeAsync(
+                lastUserMessage: BuildKindScopedInput(kind, text),
+                existingReportText: p.ToReportText(includeSources: true),
+                ct: timeoutCts.Token);
+        }
+        catch
+        {
+            return;
+        }
 
-        svc.SaveProfile(p with { Fields = fields });
+        if (extracted.Count == 0) return;
+
+        extracted = MainAiFieldPolicy.Apply(extracted);
+
+        var merged = new System.Collections.Generic.Dictionary<string, string>(p.Fields, StringComparer.OrdinalIgnoreCase);
+        var changed = new System.Collections.Generic.List<string>();
+
+        foreach (var kv in extracted)
+        {
+            if (!merged.TryGetValue(kv.Key, out var cur) || string.IsNullOrWhiteSpace(cur))
+            {
+                merged[kv.Key] = kv.Value;
+                changed.Add(kv.Key);
+            }
+        }
+
+        if (changed.Count == 0) return;
+
+        merged["main_ai_model"] = MainAiModel;
+        svc.SaveProfile(p with { Fields = merged });
+
+        try { MainAiChangeLog.Append(p.Id, kind, changed); } catch { }
+
+        _lastProcessedUserMsg = text;
+        if (kind.Length > 0) _lastKindAt[kind] = DateTimeOffset.Now;
+    }
+
+    private static string BuildKindScopedInput(string kind, string text)
+    {
+        kind = (kind ?? "").Trim();
+        text = (text ?? "").Trim();
+
+        if (kind.StartsWith("skill", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"[프로그램 이벤트: 스킬 실행]\n{text}\n\n이 이벤트로부터 사용자의 관심사/목표/자주 쓰는 기능 같은 '일반 프로필'만 추출해라.";
+        }
+
+        if (kind.StartsWith("files", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"[프로그램 이벤트: 파일 작업]\n{text}\n\n이 이벤트로부터 사용자의 작업 성향/관심 영역 같은 '일반 프로필'만 추출해라.";
+        }
+
+        // default: chat user message
+        return text;
     }
 
     public void Dispose()

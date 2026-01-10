@@ -17,6 +17,17 @@ public partial class ChatPage : Page
         await _duoGate.WaitAsync();
         try
         {
+            try
+            {
+                javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.DuoRequest, new
+                {
+                    evt = "DuoRequestStarted",
+                    at = DateTimeOffset.Now,
+                    room = "duo"
+                });
+            }
+            catch { }
+
             // 1) stop previous run
             try { _duoCts?.Cancel(); } catch { }
             if (_duoTask != null)
@@ -39,54 +50,94 @@ public partial class ChatPage : Page
 
     private async Task RunDuoAsync(string userText, CancellationToken ct)
     {
-        // Snapshot messages on UI thread to avoid cross-thread access
-        var recentContext = await UiAsync(() =>
+        try
         {
-            var vm = (javis.ViewModels.ChatViewModel)DataContext;
-            var snap = vm.DuoMessages.ToList();
-            return ChatPage.BuildRecentContext(snap);
-        });
+            // Snapshot messages on UI thread to avoid cross-thread access
+            var recentContext = await UiAsync(() =>
+            {
+                var vm = (javis.ViewModels.ChatViewModel)DataContext;
+                var snap = vm.DuoMessages.ToList();
+                return ChatPage.BuildRecentContext(snap);
+            });
 
-        var topicMode = "FollowLastTopic";
-        var topicSeed = "";
+            var topicMode = "FollowLastTopic";
+            var topicSeed = "";
 
-        var vaultSnippets = Host.VaultIndex.BuildSnippetsBlockForPrompt(6);
+            var vaultSnippets = Host.VaultIndex.BuildSnippetsBlockForPrompt(6);
 
-        var json = await RunDialogueAndGetFinalJsonAsync(
-            idle: false,
-            track: "debate",
-            newUserText: (userText ?? "").Trim(),
-            recentContext: recentContext,
-            topicMode: topicMode,
-            topicSeed: topicSeed,
-            vaultSnippets: vaultSnippets,
-            ct: ct);
+            var json = await RunDialogueAndGetFinalJsonAsync(
+                idle: false,
+                track: "debate",
+                newUserText: (userText ?? "").Trim(),
+                recentContext: recentContext,
+                topicMode: topicMode,
+                topicSeed: topicSeed,
+                vaultSnippets: vaultSnippets,
+                ct: ct);
 
-        ct.ThrowIfCancellationRequested();
+            ct.ThrowIfCancellationRequested();
 
-        using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-        var intent = root.TryGetProperty("intent", out var iEl) ? (iEl.GetString() ?? "say") : "say";
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var intent = root.TryGetProperty("intent", out var iEl) ? (iEl.GetString() ?? "say") : "say";
 
-        if (string.Equals(intent, "say", StringComparison.OrdinalIgnoreCase))
-        {
-            var say = root.TryGetProperty("say", out var sEl) ? (sEl.GetString() ?? "") : "";
-            if (!string.IsNullOrWhiteSpace(say))
+            if (string.Equals(intent, "say", StringComparison.OrdinalIgnoreCase))
+            {
+                var say = root.TryGetProperty("say", out var sEl) ? (sEl.GetString() ?? "") : "";
+                if (!string.IsNullOrWhiteSpace(say))
+                {
+                    await UiAsync(() =>
+                    {
+                        var vm = (javis.ViewModels.ChatViewModel)DataContext;
+                        vm.DuoMessages.Add(new javis.Models.ChatMessage("assistant", ChatTextUtil.SanitizeUiText(say)));
+                    });
+
+                    try
+                    {
+                        javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.ChatMessage, new
+                        {
+                            room = "duo",
+                            role = "assistant",
+                            text = say,
+                            ts = DateTimeOffset.Now
+                        });
+                    }
+                    catch { }
+                }
+            }
+            else
             {
                 await UiAsync(() =>
                 {
                     var vm = (javis.ViewModels.ChatViewModel)DataContext;
-                    vm.DuoMessages.Add(new javis.Models.ChatMessage("assistant", ChatTextUtil.SanitizeUiText(say)));
+                    vm.DuoMessages.Add(new javis.Models.ChatMessage("assistant", $"(duo) unsupported intent: {intent}"));
                 });
+
+                try
+                {
+                    javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.ChatMessage, new
+                    {
+                        room = "duo",
+                        role = "assistant",
+                        text = $"(duo) unsupported intent: {intent}",
+                        ts = DateTimeOffset.Now
+                    });
+                }
+                catch { }
             }
         }
-        else
+        finally
         {
-            await UiAsync(() =>
+            try
             {
-                var vm = (javis.ViewModels.ChatViewModel)DataContext;
-                vm.DuoMessages.Add(new javis.Models.ChatMessage("assistant", $"(duo) unsupported intent: {intent}"));
-            });
+                javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.DuoRequest, new
+                {
+                    evt = "DuoRequestEnded",
+                    at = DateTimeOffset.Now,
+                    room = "duo"
+                });
+            }
+            catch { }
         }
     }
 

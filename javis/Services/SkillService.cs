@@ -14,26 +14,38 @@ public sealed class SkillService : IDisposable
 
     public event Action? SkillsChanged;
 
-    public string SkillsRoot { get; }
+    public string SkillsRoot { get; private set; }
 
-    private readonly FileSystemWatcher _watcher;
+    private FileSystemWatcher _watcher;
     private readonly System.Timers.Timer _debounce;
 
     private SkillService()
     {
-        var dataDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Jarvis");
-        Directory.CreateDirectory(dataDir);
+        _debounce = new System.Timers.Timer(250) { AutoReset = false };
+        _debounce.Elapsed += (_, __) => SkillsChanged?.Invoke();
 
+        RebindToActiveUser();
+
+        try
+        {
+            UserReloadBus.ActiveUserChanged += _ =>
+            {
+                try { RebindToActiveUser(); }
+                catch { }
+            };
+        }
+        catch { }
+    }
+
+    private void RebindToActiveUser()
+    {
+        var dataDir = UserProfileService.Instance.ActiveUserDataDir;
         SkillsRoot = Path.Combine(dataDir, "skills");
         Directory.CreateDirectory(SkillsRoot);
 
         EnsureSampleSkill();
 
-        _debounce = new System.Timers.Timer(250) { AutoReset = false };
-        _debounce.Elapsed += (_, __) => SkillsChanged?.Invoke();
-
+        _watcher?.Dispose();
         _watcher = new FileSystemWatcher(SkillsRoot)
         {
             IncludeSubdirectories = true,
@@ -46,6 +58,8 @@ public sealed class SkillService : IDisposable
         _watcher.Created += (_, __) => DebouncedRaise();
         _watcher.Deleted += (_, __) => DebouncedRaise();
         _watcher.Renamed += (_, __) => DebouncedRaise();
+
+        DebouncedRaise();
     }
 
     private void DebouncedRaise()

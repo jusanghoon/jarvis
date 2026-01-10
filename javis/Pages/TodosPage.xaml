@@ -73,32 +73,110 @@
                 <Border Grid.Row="2" CornerRadius="12" Background="#11FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" Padding="10">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="90"/>
+                            <ColumnDefinition Width="120"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="90"/>
                             <ColumnDefinition Width="120"/>
                         </Grid.ColumnDefinitions>
 
-                        <TextBox Grid.Column="0"
-                                 Height="36"
-                                 VerticalContentAlignment="Center"
-                                 Padding="10,0"
-                                 Background="#22FFFFFF"
-                                 Foreground="#EAF6FF"
-                                 BorderBrush="#22FFFFFF"
-                                 Text="{Binding NewTime, UpdateSourceTrigger=PropertyChanged}"/>
+                        <StackPanel Grid.Column="0" Orientation="Vertical">
+                            <TextBlock Text="시간" Foreground="#A8C7D9" FontSize="12" Margin="2,0,0,4"/>
 
-                        <TextBox Grid.Column="1" Margin="10,0,10,0"
-                                 Height="36"
-                                 VerticalContentAlignment="Center"
-                                 Padding="10,0"
-                                 Background="#22FFFFFF"
-                                 Foreground="#EAF6FF"
-                                 BorderBrush="#22FFFFFF"
-                                 Text="{Binding NewTitle, UpdateSourceTrigger=PropertyChanged}"/>
+                            <ComboBox Height="36"
+                                      FontSize="13"
+                                      VerticalContentAlignment="Center"
+                                      HorizontalContentAlignment="Center"
+                                      Padding="6,0"
+                                      MaxDropDownHeight="240"
+                                      IsEditable="True"
+                                      IsTextSearchEnabled="False"
+                                      StaysOpenOnEdit="True"
+                                      Background="#F3F6FA"
+                                      Foreground="#0B2233"
+                                      BorderBrush="#22FFFFFF"
+                                      Text="{Binding NewTime, UpdateSourceTrigger=PropertyChanged}"
+                                      ToolTip="드롭다운에서 선택하거나 HH:mm 직접 입력">
+                                <ComboBox.Resources>
+                                    <Style TargetType="ComboBoxItem">
+                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="Foreground" Value="#0B2233"/>
+                                        <Setter Property="Background" Value="#F3F6FA"/>
+                                        <Setter Property="Padding" Value="10,6"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                    </Style>
+                                </ComboBox.Resources>
+                                <ComboBoxItem Content="(시간 없음)" Tag=""/>
+                                <ComboBoxItem Content="00:00"/>
+                                <ComboBoxItem Content="00:30"/>
+                                <ComboBoxItem Content="01:00"/>
+                                <ComboBoxItem Content="01:30"/>
+                                <ComboBoxItem Content="02:00"/>
+                                <ComboBoxItem Content="02:30"/>
+                                <ComboBoxItem Content="03:00"/>
+                                <ComboBoxItem Content="03:30"/>
+                                <ComboBoxItem Content="04:00"/>
+                                <ComboBoxItem Content="04:30"/>
+                                <ComboBoxItem Content="05:00"/>
+                                <ComboBoxItem Content="05:30"/>
+                                <ComboBoxItem Content="06:00"/>
+                                <ComboBoxItem Content="06:30"/>
+                                <ComboBoxItem Content="07:00"/>
+                                <ComboBoxItem Content="07:30"/>
+                                <ComboBoxItem Content="08:00"/>
+                                <ComboBoxItem Content="08:30"/>
+                                <ComboBoxItem Content="09:00"/>
+                                <ComboBoxItem Content="09:30"/>
+                                <ComboBoxItem Content="10:00"/>
+                                <ComboBoxItem Content="10:30"/>
+                                <ComboBoxItem Content="11:00"/>
+                                <ComboBoxItem Content="11:30"/>
+                                <ComboBoxItem Content="12:00"/>
+                                <ComboBoxItem Content="12:30"/>
+                                <ComboBoxItem Content="13:00"/>
+                                <ComboBoxItem Content="13:30"/>
+                                <ComboBoxItem Content="14:00"/>
+                                <ComboBoxItem Content="14:30"/>
+                                <ComboBoxItem Content="15:00"/>
+                                <ComboBoxItem Content="15:30"/>
+                                <ComboBoxItem Content="16:00"/>
+                                <ComboBoxItem Content="16:30"/>
+                                <ComboBoxItem Content="17:00"/>
+                                <ComboBoxItem Content="17:30"/>
+                                <ComboBoxItem Content="18:00"/>
+                                <ComboBoxItem Content="18:30"/>
+                                <ComboBoxItem Content="19:00"/>
+                                <ComboBoxItem Content="19:30"/>
+                                <ComboBoxItem Content="20:00"/>
+                                <ComboBoxItem Content="20:30"/>
+                                <ComboBoxItem Content="21:00"/>
+                                <ComboBoxItem Content="21:30"/>
+                                <ComboBoxItem Content="22:00"/>
+                                <ComboBoxItem Content="22:30"/>
+                                <ComboBoxItem Content="23:00"/>
+                                <ComboBoxItem Content="23:30"/>
+                            </ComboBox>
+                        </StackPanel>
 
-                        <Button Grid.Column="3" Content="Add"
+                        <StackPanel Grid.Column="1" Margin="10,0,10,0" Orientation="Vertical">
+                            <TextBlock Text="할 일" Foreground="#A8C7D9" FontSize="12" Margin="2,0,0,4"/>
+                            <TextBox Height="36"
+                                     FontSize="13"
+                                     VerticalContentAlignment="Center"
+                                     HorizontalContentAlignment="Left"
+                                     Padding="10,0"
+                                     Background="#22FFFFFF"
+                                     Foreground="#EAF6FF"
+                                     BorderBrush="#22FFFFFF"
+                                     Text="{Binding NewTitle, UpdateSourceTrigger=PropertyChanged}" 
+                                     ToolTip="할 일 제목"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="2" Content="추가"
                                 Height="36"
+                                FontSize="13"
+                                FontWeight="SemiBold"
+                                Background="#2A76D2"
+                                Foreground="#EAF6FF"
+                                BorderBrush="#33BFE9FF"
                                 Command="{Binding AddCommand}"/>
                     </Grid>
                 </Border>

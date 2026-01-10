@@ -42,6 +42,17 @@ public sealed class SoloOrchestrator : IAsyncDisposable
         {
             if (IsRunning) return;
 
+            try
+            {
+                javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.SoloRequest, new
+                {
+                    evt = "SoloRequestStarted",
+                    at = DateTimeOffset.Now,
+                    room = "solo"
+                });
+            }
+            catch { }
+
             _cts = new CancellationTokenSource();
             _loopTask = Task.Run(() => LoopAsync(_cts.Token));
 
@@ -75,6 +86,17 @@ public sealed class SoloOrchestrator : IAsyncDisposable
             }
 
             _ui.PostSystem("SOLO OFF");
+
+            try
+            {
+                javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.SoloRequest, new
+                {
+                    evt = "SoloRequestEnded",
+                    at = DateTimeOffset.Now,
+                    room = "solo"
+                });
+            }
+            catch { }
         }
         finally
         {

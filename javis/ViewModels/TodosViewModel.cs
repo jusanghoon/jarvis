@@ -10,12 +10,26 @@ namespace javis.ViewModels;
 
 public partial class TodosViewModel : ObservableObject
 {
-    private readonly CalendarTodoStore _store = new();
+    private CalendarTodoStore _store;
 
     public TodosViewModel()
     {
+        _store = new CalendarTodoStore(UserProfileService.Instance.ActiveUserDataDir);
+
         SelectedDate = DateTime.Today;
         Refresh();
+
+        UserReloadBus.ActiveUserChanged += OnActiveUserChanged;
+    }
+
+    private void OnActiveUserChanged(string userId)
+    {
+        try
+        {
+            _store = new CalendarTodoStore(UserProfileService.Instance.ActiveUserDataDir);
+            Refresh();
+        }
+        catch { }
     }
 
     private DateTime _selectedDate;
@@ -78,6 +92,21 @@ public partial class TodosViewModel : ObservableObject
         };
 
         _store.Upsert(item);
+        try
+        {
+            javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.TodoChange, new
+            {
+                op = "upsert",
+                id = item.Id,
+                date = item.Date,
+                time = item.Time,
+                title = item.Title,
+                isDone = item.IsDone,
+                ts = DateTimeOffset.Now
+            });
+        }
+        catch { }
+        try { javis.Services.TodoBus.PublishChanged(); } catch { }
         NewTitle = "";
         NewTime = "";
         Refresh();
@@ -89,6 +118,21 @@ public partial class TodosViewModel : ObservableObject
     {
         item.IsDone = !item.IsDone;
         _store.Upsert(item);
+        try
+        {
+            javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.TodoChange, new
+            {
+                op = "toggle_done",
+                id = item.Id,
+                date = item.Date,
+                time = item.Time,
+                title = item.Title,
+                isDone = item.IsDone,
+                ts = DateTimeOffset.Now
+            });
+        }
+        catch { }
+        try { javis.Services.TodoBus.PublishChanged(); } catch { }
         Refresh();
     }
 
@@ -96,6 +140,17 @@ public partial class TodosViewModel : ObservableObject
     private void Delete(CalendarTodoItem item)
     {
         _store.Delete(item.Id);
+        try
+        {
+            javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.TodoChange, new
+            {
+                op = "delete",
+                id = item.Id,
+                ts = DateTimeOffset.Now
+            });
+        }
+        catch { }
+        try { javis.Services.TodoBus.PublishChanged(); } catch { }
         Refresh();
         Status = "삭제가 완료되었습니다.";
     }

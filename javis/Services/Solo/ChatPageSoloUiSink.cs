@@ -22,10 +22,38 @@ public sealed class ChatPageSoloUiSink : ISoloUiSink
     }
 
     public void PostSystem(string text)
-        => _dispatcher.InvokeAsync(() => _addMessage(ChatRoom.Solo, "assistant", ChatTextUtil.SanitizeUiText(text)));
+        => _dispatcher.InvokeAsync(() =>
+        {
+            _addMessage(ChatRoom.Solo, "assistant", ChatTextUtil.SanitizeUiText(text));
+            try
+            {
+                javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.ChatMessage, new
+                {
+                    room = "solo",
+                    role = "system",
+                    text,
+                    ts = DateTimeOffset.Now
+                });
+            }
+            catch { }
+        });
 
     public void PostAssistant(string text)
-        => _dispatcher.InvokeAsync(() => _addMessage(ChatRoom.Solo, "assistant", ChatTextUtil.SanitizeUiText(text)));
+        => _dispatcher.InvokeAsync(() =>
+        {
+            _addMessage(ChatRoom.Solo, "assistant", ChatTextUtil.SanitizeUiText(text));
+            try
+            {
+                javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.ChatMessage, new
+                {
+                    room = "solo",
+                    role = "assistant",
+                    text,
+                    ts = DateTimeOffset.Now
+                });
+            }
+            catch { }
+        });
 
     public void PostDebug(string text)
         => _dispatcher.InvokeAsync(() => _appendDebug(ChatTextUtil.SanitizeUiText(text)));

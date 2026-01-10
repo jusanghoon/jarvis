@@ -61,7 +61,7 @@ public partial class ChatPage : Page
                 if (idle)
                     await Task.Delay(2000, ct2);
 
-                var vaultSnippets = Host.VaultIndex.BuildSnippetsBlockForPrompt(6);
+                var vaultSnippets = Kernel.PersonalVaultIndex.BuildSnippetsBlockForPrompt(6);
                 var hasSnippets = !(vaultSnippets.Contains("����") || vaultSnippets.Contains("�����ϴ�"));
 
                 if (idle && !hasSnippets && track == "reflect")
@@ -147,7 +147,7 @@ public partial class ChatPage : Page
                     }
 
                     var noteEl = root.GetProperty("note");
-                    var title = noteEl.TryGetProperty("title", out var tEl) ? (tEl.GetString() ?? "��Ʈ") : "��Ʈ";
+                    var title = noteEl.TryGetProperty("title", out var tEl) ? (tEl.GetString() ?? "노트") : "노트";
                     var body = noteEl.TryGetProperty("body", out var bEl) ? (bEl.GetString() ?? "") : "";
 
                     var isRepeat = await UiAsync(() => IsRepeatNote(title, body));
@@ -170,17 +170,18 @@ public partial class ChatPage : Page
                     var tags = ChatTextUtil.ReadStringArray(noteEl, "tags", 8, 40);
                     var qs = ChatTextUtil.ReadStringArray(noteEl, "questions", 4, 180);
 
-                    await Host.SoloNotes.AppendAsync("note", new { title, body, tags, questions = qs }, ct2);
+                    var personalNotes = new SoloNotesStore(Kernel.PersonalDataDir);
+                    await personalNotes.AppendAsync("note", new { title, body, tags, questions = qs }, ct2);
                     Host.SoloLimiter.MarkWrote();
 
                     var shouldPromote = tags.Any(t => t.Equals("canon", StringComparison.OrdinalIgnoreCase));
                     if (shouldPromote)
-                        await Host.Canon.AppendAsync(title, body, tags.ToArray(), kind: "promoted", ct2);
+                        await Kernel.PersonalCanon.AppendAsync(title, body, tags.ToArray(), kind: "promoted", ct2);
 
                     var chatText =
-                        $"?? [SOLO ��Ʈ]\n{title}\n\n{ChatTextUtil.TrimMax(body, 350)}" +
-                        (qs.Count > 0 ? "\n\n? ����\n- " + string.Join("\n- ", qs) : "") +
-                        (tags.Count > 0 ? "\n\n??? " + string.Join(", ", tags) : "");
+                        $"📝 [SOLO 노트]\n{title}\n\n{ChatTextUtil.TrimMax(body, 350)}" +
+                        (qs.Count > 0 ? "\n\n❓ 질문\n- " + string.Join("\n- ", qs) : "") +
+                        (tags.Count > 0 ? "\n\n🏷️ " + string.Join(", ", tags) : "");
 
                     await UiAsync(() => AppendAssistant(chatText));
                 }
@@ -264,8 +265,8 @@ public partial class ChatPage : Page
         var now = DateTimeOffset.Now;
         var allowDebate = !idle
             && (newUserText?.Trim().Length ?? 0) >= 60
-            && (string.Equals(topicMode, SoloTopicMode.FollowLastTopic.ToString(), StringComparison.OrdinalIgnoreCase) || true)
-            && now - _debateLastAt >= DebateMinInterval
+            && string.Equals(topicMode, SoloTopicMode.FollowLastTopic.ToString(), StringComparison.OrdinalIgnoreCase)
+            && (now - _debateLastAt) >= DebateMinInterval
             && _rng.NextDouble() < 0.25;
 
         var candidates = idle
@@ -315,7 +316,7 @@ public partial class ChatPage : Page
         var hasTopic = !string.IsNullOrWhiteSpace(topicSeed);
         var hasSnippets = !(vaultSnippets?.Contains("����") ?? true) && !(vaultSnippets?.Contains("�����ϴ�") ?? true);
 
-        var canonBlock = Host.Canon.BuildPromptBlock(query: (newUserText + " " + vaultSnippets + " " + topicSeed).Trim(), maxItems: 6);
+        var canonBlock = Kernel.PersonalCanon.BuildPromptBlock(query: (newUserText + " " + vaultSnippets + " " + topicSeed).Trim(), maxItems: 6);
 
         var angleId = GetAngleIdAndAdvance();
         var angleText = AngleInstruction(angleId);

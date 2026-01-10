@@ -22,7 +22,7 @@ public partial class ChatViewModel : ObservableObject
     private readonly OllamaChatService _ollama = new("http://localhost:11434/api");
     private readonly List<OllamaMessage> _history = new();
 
-    private readonly CalendarTodoStore _calendarStore = new();
+    private CalendarTodoStore _calendarStore;
 
     private CancellationTokenSource? _cts;
 
@@ -33,6 +33,13 @@ public partial class ChatViewModel : ObservableObject
     public ChatViewModel()
     {
         _ui = SynchronizationContext.Current ?? new SynchronizationContext();
+
+        _calendarStore = new CalendarTodoStore(UserProfileService.Instance.ActiveUserDataDir);
+        UserReloadBus.ActiveUserChanged += _ =>
+        {
+            try { _calendarStore = new CalendarTodoStore(UserProfileService.Instance.ActiveUserDataDir); }
+            catch { }
+        };
 
         _history.Add(new OllamaMessage("system",
             """
@@ -231,6 +238,18 @@ public partial class ChatViewModel : ObservableObject
         MainMessages.Add(new ChatMessage("user", text));
         ScrollToEndRequested?.Invoke();
 
+        try
+        {
+            javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.ChatMessage, new
+            {
+                room = "main",
+                role = "user",
+                text,
+                ts = DateTimeOffset.Now
+            });
+        }
+        catch { }
+
         _history.Add(new OllamaMessage("user", text));
 
         const string CURSOR = "|";
@@ -336,7 +355,7 @@ public partial class ChatViewModel : ObservableObject
 
             try
             {
-                var canon = PluginHost.Instance.Canon.BuildPromptBlock(query: text, maxItems: 6);
+                var canon = javis.App.Kernel.PersonalCanon.BuildPromptBlock(query: text, maxItems: 6);
                 context.Add(new OllamaMessage("system", "[CANON]\n" + canon));
             }
             catch { }
@@ -369,8 +388,87 @@ public partial class ChatViewModel : ObservableObject
 
             await doneTcs.Task;
 
+            // Apply action JSON if present
+            try
+            {
+                var finalText = assistantMsg.Text ?? "";
+                var trimmed = finalText.Trim();
+
+                if (trimmed.StartsWith("{") && trimmed.Contains("\"intent\"", StringComparison.OrdinalIgnoreCase))
+                {
+                    var json = javis.Services.JsonUtil.ExtractFirstJsonObject(trimmed);
+                    var env = System.Text.Json.JsonSerializer.Deserialize<javis.Services.ChatActions.ChatActionEnvelope>(json, new System.Text.Json.JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (env != null)
+                    {
+                        var intent = (env.Intent ?? "say").Trim().ToLowerInvariant();
+
+                        if (intent == "todo.list_today")
+                        {
+                            var today = javis.Services.ChatActions.TodoQueryService.GetTodayOpenTodos();
+                            assistantMsg.Text = javis.Services.ChatActions.TodoQueryService.BuildNumberedListForChat(today, "오늘 할 일 목록");
+                        }
+                        else if (intent == "todo.list")
+                        {
+                            // date: single day; from+days: range
+                            if (!string.IsNullOrWhiteSpace(env.Date) && javis.Services.ChatActions.KstDateParser.TryParseKoreanRelativeDate(env.Date, out var d1))
+                            {
+                                var list = javis.Services.ChatActions.TodoQueryService.GetTodosByDate(d1, includeDone: false);
+                                assistantMsg.Text = javis.Services.ChatActions.TodoQueryService.BuildGroupedNumberedListForChat(list, $"할 일 목록 ({d1:yyyy-MM-dd})");
+                            }
+                            else if (!string.IsNullOrWhiteSpace(env.From) && javis.Services.ChatActions.KstDateParser.TryParseKoreanRelativeDate(env.From, out var from) && (env.Days ?? 0) > 0)
+                            {
+                                var list = javis.Services.ChatActions.TodoQueryService.GetTodosInRange(from, env.Days!.Value, includeDone: false);
+                                assistantMsg.Text = javis.Services.ChatActions.TodoQueryService.BuildGroupedNumberedListForChat(list, $"할 일 목록 ({from:yyyy-MM-dd}~{from.AddDays(env.Days.Value - 1):yyyy-MM-dd})");
+                            }
+                            else
+                            {
+                                assistantMsg.Text = "조회할 날짜가 애매해. 예: '오늘 할 일 목록', '내일 할 일 목록', '2026-01-12 할 일 목록', '이번주 할 일 목록(7일)'";
+                            }
+                        }
+                        else if (intent is "todo.upsert" or "todo.delete")
+                        {
+                            // if delete by index, map into todo.title for applier
+                            if (intent == "todo.delete" && env.Todo != null && string.IsNullOrWhiteSpace(env.Todo.Id))
+                            {
+                                if (env.Index is int ix && ix > 0)
+                                    env.Todo.Title = ix.ToString();
+                            }
+
+                            if (javis.Services.ChatActions.TodoActionApplier.TryApply(env.Todo, out var msg))
+                            {
+                                try { _calendarStore = new CalendarTodoStore(UserProfileService.Instance.ActiveUserDataDir); } catch { }
+
+                                var say = string.IsNullOrWhiteSpace(env.Say) ? msg : env.Say;
+                                assistantMsg.Text = say;
+                            }
+                        }
+                        else if (intent == "say" && !string.IsNullOrWhiteSpace(env.Say))
+                        {
+                            assistantMsg.Text = env.Say;
+                        }
+                    }
+                }
+            }
+            catch { }
+
             _history.Add(new OllamaMessage("assistant", assistantMsg.Text ?? ""));
             StatusText = "DONE";
+
+            try
+            {
+                javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.ChatMessage, new
+                {
+                    room = "main",
+                    role = "assistant",
+                    text = assistantMsg.Text ?? "",
+                    ts = DateTimeOffset.Now
+                });
+            }
+            catch { }
 
             try
             {
@@ -469,4 +567,28 @@ public partial class ChatViewModel : ObservableObject
     }
 
     private bool CanCancel() => IsBusy;
+
+    private readonly object _todoListGate = new();
+    private List<javis.Models.CalendarTodoItem>? _lastTodoList;
+    private DateTimeOffset _lastTodoListAt = DateTimeOffset.MinValue;
+
+    private void RememberTodoList(List<javis.Models.CalendarTodoItem> list)
+    {
+        lock (_todoListGate)
+        {
+            _lastTodoList = list;
+            _lastTodoListAt = DateTimeOffset.Now;
+        }
+    }
+
+    private bool TryGetRememberedTodoList(out List<javis.Models.CalendarTodoItem> list)
+    {
+        lock (_todoListGate)
+        {
+            list = _lastTodoList?.ToList() ?? new List<javis.Models.CalendarTodoItem>();
+            if (list.Count == 0) return false;
+            if ((DateTimeOffset.Now - _lastTodoListAt) > TimeSpan.FromMinutes(20)) return false;
+            return true;
+        }
+    }
 }

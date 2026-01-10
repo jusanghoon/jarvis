@@ -12,6 +12,8 @@ public partial class UserProfilePage : Page
     private readonly UserProfileService _profiles = UserProfileService.Instance;
     private UserProfile _profile;
 
+    private bool _suspendAutoRefresh;
+
     public UserProfilePage(string userId)
     {
         InitializeComponent();
@@ -21,7 +23,43 @@ public partial class UserProfilePage : Page
         DataContext = _profile;
 
         if (ReportBox != null)
-            ReportBox.Text = _profile.ToReportText();
+            ReportBox.Text = _profile.ToReportText(includeSources: false);
+
+        Loaded += (_, __) => _profiles.ProfileChanged += OnProfileChanged;
+        Unloaded += (_, __) => _profiles.ProfileChanged -= OnProfileChanged;
+
+        if (ReportBox != null)
+        {
+            ReportBox.GotKeyboardFocus += (_, __) => _suspendAutoRefresh = true;
+            ReportBox.LostKeyboardFocus += (_, __) => _suspendAutoRefresh = false;
+        }
+    }
+
+    private void OnProfileChanged(string id)
+    {
+        try
+        {
+            if (_suspendAutoRefresh) return;
+            if (!string.Equals(id, _profile.Id, StringComparison.OrdinalIgnoreCase)) return;
+
+            Dispatcher.InvokeAsync(() =>
+            {
+                if (_suspendAutoRefresh) return;
+
+                var latest = _profiles.TryGetProfile(_profile.Id);
+                if (latest == null) return;
+
+                _profile = latest;
+                DataContext = _profile;
+
+                if (ReportBox != null)
+                    ReportBox.Text = _profile.ToReportText(includeSources: false);
+            });
+        }
+        catch
+        {
+            // ignore
+        }
     }
 
     private void Back_Click(object sender, RoutedEventArgs e)
@@ -30,42 +68,13 @@ public partial class UserProfilePage : Page
         else NavigationService?.Navigate(new UserSelectPage());
     }
 
-    private void AutoFill_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            // user-edit buffer -> profile
-            var edited = (_profile.WithReportText(ReportBox?.Text ?? ""));
-
-            var draft = _profiles.BuildDraftFieldsFromHistory();
-
-            // merge: keep existing values if present
-            var merged = edited.Fields.ToDictionary(k => k.Key, v => v.Value, StringComparer.OrdinalIgnoreCase);
-            foreach (var kv in draft)
-            {
-                if (!merged.TryGetValue(kv.Key, out var cur) || string.IsNullOrWhiteSpace(cur))
-                    merged[kv.Key] = kv.Value;
-            }
-
-            _profile = edited with { Fields = merged };
-            DataContext = _profile;
-
-            if (ReportBox != null)
-                ReportBox.Text = _profile.ToReportText();
-        }
-        catch
-        {
-            // ignore
-        }
-    }
-
     private void ExportTsv_Click(object sender, RoutedEventArgs e)
     {
         try
         {
             var dlg = new SaveFileDialog
             {
-                Title = "프로필 TSV 저장 (엑셀로 열 수 있음)",
+                Title = "프로필 TSV 저장 (엘셀로 열 수 있음)",
                 Filter = "TSV (*.tsv)|*.tsv|All files (*.*)|*.*",
                 FileName = $"profile-{_profile.DisplayName}-{_profile.Id}.tsv"
             };
@@ -73,7 +82,16 @@ public partial class UserProfilePage : Page
             if (dlg.ShowDialog() != true) return;
 
             var edited = _profile.WithReportText(ReportBox?.Text ?? "");
-            _profiles.ExportProfileAsTsv(edited, dlg.FileName);
+
+            // B mode: hide sources by default in export as well
+            var filtered = edited with
+            {
+                Fields = edited.Fields
+                    .Where(kv => !kv.Key.EndsWith("_source", StringComparison.OrdinalIgnoreCase))
+                    .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase)
+            };
+
+            _profiles.ExportProfileAsTsv(filtered, dlg.FileName);
         }
         catch
         {
@@ -100,5 +118,17 @@ public partial class UserProfilePage : Page
 
         if (NavigationService?.CanGoBack == true) NavigationService.GoBack();
         else NavigationService?.Navigate(new UserSelectPage());
+    }
+
+    private void OpenChangeLog_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            NavigationService?.Navigate(new MainAiChangeLogPage(_profile.Id));
+        }
+        catch
+        {
+            // ignore
+        }
     }
 }

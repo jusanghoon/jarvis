@@ -12,13 +12,11 @@ namespace javis.Services;
 
 public sealed class SftDatasetExporter
 {
-    private readonly string _dataDir;
     private readonly PluginHost _host;
 
     public SftDatasetExporter(PluginHost host)
     {
         _host = host;
-        _dataDir = host.DataDir;
     }
 
     /// <summary>

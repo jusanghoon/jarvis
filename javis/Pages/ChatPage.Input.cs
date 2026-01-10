@@ -128,6 +128,19 @@ public partial class ChatPage : Page
         if (room == javis.ViewModels.ChatRoom.Solo)
         {
             await UiAsync(() => vm.SoloMessages.Add(new javis.Models.ChatMessage("user", javis.Services.ChatTextUtil.SanitizeUiText(text))));
+
+            try
+            {
+                javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.ChatMessage, new
+                {
+                    room = "solo",
+                    role = "user",
+                    text,
+                    ts = DateTimeOffset.Now
+                });
+            }
+            catch { }
+
             vm.ContextVars["user_action"] = "user_message";
 
             EnsureSoloOrchestrator();
@@ -141,6 +154,19 @@ public partial class ChatPage : Page
         if (room == javis.ViewModels.ChatRoom.Duo)
         {
             await UiAsync(() => vm.DuoMessages.Add(new javis.Models.ChatMessage("user", javis.Services.ChatTextUtil.SanitizeUiText(text))));
+
+            try
+            {
+                javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.ChatMessage, new
+                {
+                    room = "duo",
+                    role = "user",
+                    text,
+                    ts = DateTimeOffset.Now
+                });
+            }
+            catch { }
+
             vm.ContextVars["user_action"] = "user_message";
 
             // Ensure debate UI is enabled, but run DUO via dedicated CTS/task wrapper.

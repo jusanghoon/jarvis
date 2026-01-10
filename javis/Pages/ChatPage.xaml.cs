@@ -58,6 +58,8 @@ public partial class ChatPage : Page
         Loaded += ChatPage_Loaded;
         Unloaded += ChatPage_Unloaded;
         IsVisibleChanged += ChatPage_IsVisibleChanged;
+
+        UserReloadBus.ActiveUserChanged += OnActiveUserChanged;
     }
 
     private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
@@ -267,12 +269,19 @@ public partial class ChatPage : Page
 
         if (dlg.ShowDialog() != true) return;
 
+        try
+        {
+            javis.Services.MainAi.MainAiEventBus.Publish(
+                new javis.Services.MainAi.ProgramEventObserved(DateTimeOffset.Now, $"[files.import] count={dlg.FileNames.Length}", "files.import"));
+        }
+        catch { }
+
         ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"⏳ Importing {dlg.FileNames.Length} files..."));
 
         try
         {
-            var imported = await Kernel.Vault.ImportAsync(dlg.FileNames);
-            var indexedCount = await Kernel.VaultIndex.IndexNewAsync(imported, maxFiles: 10);
+            var imported = await Kernel.PersonalVault.ImportAsync(dlg.FileNames);
+            var indexedCount = await Kernel.PersonalVaultIndex.IndexNewAsync(imported, maxFiles: 10);
 
             ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"🔎 Indexed: {indexedCount} files"));
 
@@ -283,8 +292,7 @@ public partial class ChatPage : Page
             ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage(
                 "assistant",
                 "✅ Import complete\n" + string.Join("\n", lines) +
-                $"\n\nSaved to: {Kernel.Vault.InboxDir}"
-            ));
+                $"\n\nSaved to: {Kernel.PersonalVault.InboxDir}"));
         }
         catch (Exception ex)
         {
@@ -299,14 +307,21 @@ public partial class ChatPage : Page
         var files = (string[]?)e.Data.GetData(DataFormats.FileDrop);
         if (files == null || files.Length == 0) return;
 
+        try
+        {
+            javis.Services.MainAi.MainAiEventBus.Publish(
+                new javis.Services.MainAi.ProgramEventObserved(DateTimeOffset.Now, $"[files.drop] count={files.Length}", "files.drop"));
+        }
+        catch { }
+
         ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"⏳ Importing dropped files ({files.Length})..."));
 
         try
         {
-            var imported = await Kernel.Vault.ImportAsync(files);
-            var indexedCount = await Kernel.VaultIndex.IndexNewAsync(imported, maxFiles: 10);
+            var imported = await Kernel.PersonalVault.ImportAsync(files);
+            var indexedCount = await Kernel.PersonalVaultIndex.IndexNewAsync(imported, maxFiles: 10);
             ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"🔎 Indexed: {indexedCount} files"));
-            ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"✅ Dropped files saved to: {Kernel.Vault.InboxDir}"));
+            ((ChatViewModel)DataContext).MainMessages.Add(new javis.Models.ChatMessage("assistant", $"✅ Dropped files saved to: {Kernel.PersonalVault.InboxDir}"));
         }
         catch (Exception ex)
         {
@@ -383,10 +398,7 @@ public partial class ChatPage : Page
 
     private javis.Services.History.ChatHistoryStore CreateMainChatHistoryStore()
     {
-        var dataDir = System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Jarvis");
-
+        var dataDir = UserProfileService.Instance.ActiveUserDataDir;
         return new javis.Services.History.ChatHistoryStore(dataDir);
     }
 
@@ -499,5 +511,27 @@ public partial class ChatPage : Page
         if (sender is Button b) b.IsEnabled = false;
 
         AddImmediate("assistant", $"✅ 주제 고정: {topic}\n이제 이 대화는 해당 주제로만 진행할게.");
+    }
+
+    private void OnActiveUserChanged(string userId)
+    {
+        try
+        {
+            if (_mode != ChatMode.MainChat) return;
+
+            _ = Dispatcher.InvokeAsync(async () =>
+            {
+                try { await SaveMainChatHistoryIfNeededAsync("user.changed", CancellationToken.None); } catch { }
+
+                _mainChatStartedAt = DateTimeOffset.Now;
+                _mainChatSessionId = _mainChatStartedAt.ToString("yyyyMMdd_HHmmss_fff");
+                System.Threading.Interlocked.Exchange(ref _mainChatSaveGate, 0);
+
+                var vm = (ChatViewModel)DataContext;
+                vm.MainMessages.Clear();
+                vm.MainMessages.Add(new javis.Models.ChatMessage("assistant", $"유저 전환됨: {UserProfileService.Instance.ActiveUserName}"));
+            });
+        }
+        catch { }
     }
 }

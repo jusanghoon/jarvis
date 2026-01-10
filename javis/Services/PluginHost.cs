@@ -15,22 +15,22 @@ public sealed class PluginHost
     public SkillRuntime Runtime { get; } = new();
 
     public string DataDir { get; }
-    public string PluginsDir { get; }
-    public string SkillsDir { get; }
 
-    public PluginManager PluginManager { get; }
+    public string PluginsDir { get; private set; }
+    public string SkillsDir { get; private set; }
 
-    public PersonaManager Persona { get; }
-    public VaultManager Vault { get; }
-    public VaultIndexManager VaultIndex { get; }
+    public PluginManager PluginManager { get; private set; }
+
+    public PersonaManager Persona { get; private set; }
+
+    // personal stores
+    public VaultManager Vault { get; private set; }
+    public VaultIndexManager VaultIndex { get; private set; }
 
     public SoloNotesLimiter SoloLimiter { get; } = new();
-    public SoloNotesStore SoloNotes { get; }
+    public SoloNotesStore SoloNotes { get; private set; }
 
-    public IEnumerable<string> SkillIds => SkillService.Instance.LoadSkills().Select(s => s.Manifest.Id).Distinct().OrderBy(x => x);
-    public IEnumerable<string> ActionTypes => Runtime.ActionTypes;
-
-    public KnowledgeCanon Canon { get; }
+    public KnowledgeCanon Canon { get; private set; }
     public SftDatasetExporter Exporter { get; }
 
     private bool _loaded;
@@ -41,15 +41,9 @@ public sealed class PluginHost
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Jarvis");
 
-        SkillsDir = Path.Combine(DataDir, "skills");
-        PluginsDir = Path.Combine(DataDir, "plugins");
+        RebindToActiveUser();
 
-        Directory.CreateDirectory(SkillsDir);
-        Directory.CreateDirectory(PluginsDir);
-
-        Persona = new PersonaManager(DataDir);
-        Persona.Initialize();
-
+        // personal-ish data stays global here (Vault/Canon/Notes are handled elsewhere)
         Vault = new VaultManager(DataDir);
         VaultIndex = new VaultIndexManager(DataDir);
 
@@ -59,6 +53,38 @@ public sealed class PluginHost
 
         Canon = new KnowledgeCanon(DataDir);
         Exporter = new SftDatasetExporter(this);
+
+        try
+        {
+            UserReloadBus.ActiveUserChanged += _ =>
+            {
+                try
+                {
+                    _loaded = false;
+                    RebindToActiveUser();
+                }
+                catch { }
+            };
+        }
+        catch { }
+    }
+
+    private void RebindToActiveUser()
+    {
+        var userDir = UserProfileService.Instance.ActiveUserDataDir;
+
+        SkillsDir = Path.Combine(userDir, "skills");
+        PluginsDir = Path.Combine(userDir, "plugins");
+        Directory.CreateDirectory(SkillsDir);
+        Directory.CreateDirectory(PluginsDir);
+
+        Persona = new PersonaManager(userDir);
+        Persona.Initialize();
+
+        Vault = new VaultManager(userDir);
+        VaultIndex = new VaultIndexManager(userDir);
+        SoloNotes = new SoloNotesStore(userDir);
+        Canon = new KnowledgeCanon(userDir);
 
         PluginManager = new PluginManager(PluginsDir, Runtime);
     }
@@ -141,10 +167,11 @@ public sealed class PluginHost
 
     private SkillContext BuildSkillContext(Dictionary<string, string> vars)
     {
-        var memoFile = Path.Combine(DataDir, "memo.txt");
-        var todoFile = Path.Combine(DataDir, "todos.json");
+        var dataDir = UserProfileService.Instance.ActiveUserDataDir;
+        var memoFile = Path.Combine(dataDir, "memo.txt");
+        var todoFile = Path.Combine(dataDir, "todos.json");
         var dictionary = vars.ToDictionary(v => v.Key, v => (object)v.Value);
-        return new SkillContext(DataDir, memoFile, todoFile, dictionary);
+        return new SkillContext(dataDir, memoFile, todoFile, dictionary);
     }
 
     public AuditLogger? Logger

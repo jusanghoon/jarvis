@@ -29,6 +29,13 @@ public sealed class JarvisKernel
 
     public DailyObservationNotes DailyNotes { get; }
 
+    public string PersonalDataDir { get; private set; }
+
+    public KnowledgeCanon PersonalCanon { get; private set; }
+    public VaultManager PersonalVault { get; private set; }
+    public VaultIndexManager PersonalVaultIndex { get; private set; }
+    public DailyObservationNotes PersonalDailyNotes { get; private set; }
+
     public JarvisKernel()
     {
         DataDir = Path.Combine(
@@ -65,6 +72,41 @@ public sealed class JarvisKernel
         DailyNotes = new DailyObservationNotes(DataDir);
 
         Plugins = new PluginManager(PluginsDir, Runtime);
+
+        // Defaults (will be rebound when active user is loaded)
+        PersonalDataDir = UserProfileService.Instance.ActiveUserDataDir;
+        PersonalCanon = new KnowledgeCanon(PersonalDataDir);
+        PersonalVault = new VaultManager(PersonalDataDir);
+        PersonalVaultIndex = new VaultIndexManager(PersonalDataDir);
+        PersonalDailyNotes = new DailyObservationNotes(PersonalDataDir);
+
+        try
+        {
+            UserProfileService.Instance.ProfileChanged += OnProfileChanged;
+        }
+        catch { }
+    }
+
+    private void OnProfileChanged(string userId)
+    {
+        try
+        {
+            if (!string.Equals(userId, UserProfileService.Instance.ActiveUserId, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            RebindPersonalStores();
+        }
+        catch { }
+    }
+
+    private void RebindPersonalStores()
+    {
+        // Only personal/knowledge stores are rebound; common app services remain global.
+        PersonalDataDir = UserProfileService.Instance.ActiveUserDataDir;
+        PersonalCanon = new KnowledgeCanon(PersonalDataDir);
+        PersonalVault = new VaultManager(PersonalDataDir);
+        PersonalVaultIndex = new VaultIndexManager(PersonalDataDir);
+        PersonalDailyNotes = new DailyObservationNotes(PersonalDataDir);
     }
 
     public void Initialize()
@@ -82,7 +124,7 @@ public sealed class JarvisKernel
 
     public string GetVaultContextForSolo(int maxItems = 10)
     {
-        var recent = Vault.ReadRecent(maxItems);
+        var recent = PersonalVault.ReadRecent(maxItems);
         if (recent.Count == 0) return "(최근 추가된 자료 없음)";
 
         var sb = new StringBuilder();
@@ -90,7 +132,7 @@ public sealed class JarvisKernel
 
         foreach (var it in recent)
         {
-            var indexed = VaultIndex.IsIndexed(it.sha256) ? "indexed" : "not_indexed";
+            var indexed = PersonalVaultIndex.IsIndexed(it.sha256) ? "indexed" : "not_indexed";
             var key = it.sha256.Length >= 8 ? it.sha256.Substring(0, 8) : it.sha256;
             sb.AppendLine($"- [{key}] {it.fileName} ({it.ext}, {it.sizeBytes} bytes, {indexed})");
         }

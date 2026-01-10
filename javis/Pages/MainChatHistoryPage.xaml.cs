@@ -5,12 +5,13 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using javis.Services.History;
+using javis.Services;
 
 namespace javis.Pages;
 
 public partial class MainChatHistoryPage : Page
 {
-    private readonly ChatHistoryStore _store;
+    private ChatHistoryStore _store;
 
     private bool _opening;
 
@@ -42,12 +43,28 @@ public partial class MainChatHistoryPage : Page
     {
         InitializeComponent();
 
-        var dataDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Jarvis");
-
-        _store = new ChatHistoryStore(dataDir);
+        _store = CreateStore();
         LoadList();
+
+        UserReloadBus.ActiveUserChanged += OnActiveUserChanged;
+    }
+
+    private void OnActiveUserChanged(string userId)
+    {
+        try
+        {
+            _store = CreateStore();
+            DetailTitle.Text = "";
+            DetailLines.ItemsSource = null;
+            LoadList();
+        }
+        catch { }
+    }
+
+    private javis.Services.History.ChatHistoryStore CreateStore()
+    {
+        var dataDir = javis.Services.UserProfileService.Instance.ActiveUserDataDir;
+        return new javis.Services.History.ChatHistoryStore(dataDir);
     }
 
     private void LoadList()

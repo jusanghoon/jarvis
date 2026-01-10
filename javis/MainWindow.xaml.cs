@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using javis.Pages;
 using javis.Services;
+using javis.ViewModels;
 
 namespace javis
 {
@@ -16,6 +17,7 @@ namespace javis
         private readonly TodosPage _todosPage = new();
         private readonly Pages.SkillsPage _skillsPage = new();
         private readonly SettingsPage _settingsPage = new();
+        private readonly MainAiWidgetViewModel _mainAiWidgetVm = new();
 
         public void NavigateToTodos(DateTime date)
         {
@@ -46,6 +48,14 @@ namespace javis
         public MainWindow()
         {
             InitializeComponent();
+
+            try
+            {
+                MainAiWidget.DataContext = _mainAiWidgetVm;
+                _mainAiWidgetVm.RequestNavigateToChat += () => Dispatcher.InvokeAsync(NavigateToChat);
+            }
+            catch { }
+
             Loaded += (_, __) =>
             {
                 WindowFx.EnableAcrylic(this);
