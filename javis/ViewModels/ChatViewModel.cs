@@ -41,11 +41,16 @@ public partial class ChatViewModel : ObservableObject
             catch { }
         };
 
+        // Main chat assistant is the app's general assistant (Jarvis), independent from the right-panel persona.
+        const string aiName = "Jarvis";
+        var hello = "온라인. 무엇을 도와줄까?";
+
         _history.Add(new OllamaMessage("system",
-            """
-            너는 개인비서 JARVIS처럼 행동하는 한국어 AI 비서다.
+            $"""
+            너는 개인비서 AI 비서다.
             - 톤: 짧고 단호하게. 약간 스마트시크한 느낌.
             - 사용자가 요청하면 단계별로 간단 계획을 제시하고, 필요한 정보를 묻는다.
+            - 출력 언어: 항상 한국어로 답해라. (사용자가 다른 언어를 요청하기 전까지)
 
             [날짜/시간 규칙]
             - 현재 시간(Asia/Seoul, KST)은 매 요청마다 system 메시지로 주어진다.
@@ -61,7 +66,7 @@ public partial class ChatViewModel : ObservableObject
                 StatusText = $"READY / {Settings.Model}";
         };
 
-        MainMessages.Add(new ChatMessage("assistant", "온라인. 무엇을 도와줄까?"));
+        MainMessages.Add(new ChatMessage("assistant", hello));
     }
 
     public ObservableCollection<ChatMessage> MainMessages { get; } = new();
@@ -186,6 +191,41 @@ public partial class ChatViewModel : ObservableObject
     {
         var text = InputText?.Trim();
         if (string.IsNullOrWhiteSpace(text)) return;
+
+        // Hard topic lock (softened): allow simple greetings/ack without forcing topic keyword.
+        if (TopicLocked && !string.IsNullOrWhiteSpace(Topic))
+        {
+            var t = Topic.Trim();
+            var lowered = text.ToLowerInvariant();
+            var topicLower = t.ToLowerInvariant();
+
+            static bool IsShortChitchat(string s)
+            {
+                s = (s ?? "").Trim();
+                if (s.Length == 0) return true;
+                if (s.Length >= 12) return false;
+
+                return s is "안녕" or "안녕하세요" or "ㅎㅇ" or "하이" or "hello" or "hi" or "ok" or "okay" or "ㅇㅋ" or "ㅇㅇ" or "ㄱㄱ" or "고마워" or "감사" or "감사합니다" or "ㄳ";
+            }
+
+            static bool LooksLikeQuestion(string s)
+                => s.Contains('?') || s.Contains("? ") || s.Contains("뭐") || s.Contains("어떻게") || s.Contains("왜") || s.Contains("언제") || s.Contains("어디") || s.Contains("추천") || s.Contains("알려") || s.Contains("설명");
+
+            // Only block if it looks like a substantive question/request AND it doesn't mention the topic at all.
+            // (For everything else, rely on the system prompt to steer back to the topic.)
+            if (!IsShortChitchat(lowered) && LooksLikeQuestion(text) && !lowered.Contains(topicLower))
+            {
+                MainMessages.Add(new ChatMessage("user", text));
+
+                MainMessages.Add(new ChatMessage(
+                    "assistant",
+                    $"주제가 고정돼 있어: {t}\n\n지금은 이 주제로만 진행할게. {t}에 맞게 질문을 다시 해줘."));
+
+                ScrollToEndRequested?.Invoke();
+                InputText = "";
+                return;
+            }
+        }
 
         try
         {

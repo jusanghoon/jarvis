@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using javis.Pages;
@@ -12,12 +13,17 @@ namespace javis
 {
     public partial class MainWindow : Window
     {
+        private readonly HomeViewModel _homeVm = new();
+
         private readonly HomePage _homePage = new();
         private readonly ChatEntryPage _chatPage = new();
         private readonly TodosPage _todosPage = new();
         private readonly Pages.SkillsPage _skillsPage = new();
         private readonly SettingsPage _settingsPage = new();
+        private readonly UpdatesPage _updatesPage = new();
         private readonly MainAiWidgetViewModel _mainAiWidgetVm = new();
+
+        private bool _rightPanelEnabled = true;
 
         public void NavigateToTodos(DateTime date)
         {
@@ -45,14 +51,109 @@ namespace javis
             }
         }
 
+        private void UpdateWindowTitle()
+        {
+            var aiName = (RuntimeSettings.Instance.MainAiName ?? "").Trim();
+            if (aiName.Length == 0) aiName = "JARVIS";
+            Title = $"{aiName} [{RuntimeSettings.Instance.Model}]";
+        }
+
         public MainWindow()
         {
             InitializeComponent();
 
             try
             {
+                _rightPanelEnabled = RuntimeSettings.Instance.HomeRightPanelEnabled;
+
+                if (FindName("RightPanelToggle") is ToggleButton tb)
+                    tb.IsChecked = _rightPanelEnabled;
+
+                if (FindName("RightPanelToggleGlyph") is TextBlock g)
+                    g.Text = _rightPanelEnabled ? "❮" : "❯";
+
+                ApplyRightPanelState(_rightPanelEnabled);
+            }
+            catch { }
+
+            try
+            {
                 MainAiWidget.DataContext = _mainAiWidgetVm;
-                _mainAiWidgetVm.RequestNavigateToChat += () => Dispatcher.InvokeAsync(NavigateToChat);
+
+                _mainAiWidgetVm.RequestNavigate += key => Dispatcher.InvokeAsync(() =>
+                {
+                    if (key is "home" or "chat" or "todos" or "skills" or "settings")
+                    {
+                        foreach (var obj in Nav.Items)
+                        {
+                            if (obj is ListBoxItem li && string.Equals(li.Tag?.ToString(), key, StringComparison.OrdinalIgnoreCase))
+                            {
+                                Nav.SelectedItem = li;
+                                return;
+                            }
+                        }
+                    }
+                });
+
+                _mainAiWidgetVm.RequestAction += (name, date) => Dispatcher.InvokeAsync(() =>
+                {
+                    name = (name ?? "").Trim().ToLowerInvariant();
+                    date = (date ?? "").Trim();
+
+                    if (name == "open_todos_today")
+                    {
+                        NavigateToTodos(DateTime.Today);
+                        return;
+                    }
+
+                    if (name == "open_todos_tomorrow")
+                    {
+                        NavigateToTodos(DateTime.Today.AddDays(1));
+                        return;
+                    }
+
+                    if (name == "open_todos_date")
+                    {
+                        if (!string.IsNullOrWhiteSpace(date) && javis.Services.ChatActions.KstDateParser.TryParseKoreanRelativeDate(date, out var d))
+                        {
+                            NavigateToTodos(d);
+                            return;
+                        }
+
+                        // fallback
+                        NavigateToTodos(DateTime.Today);
+                        return;
+                    }
+
+                    if (name == "open_chat_main")
+                    {
+                        NavigateToChat();
+                        return;
+                    }
+
+                    if (name == "open_settings_updates")
+                    {
+                        // Updates live under Settings
+                        foreach (var obj in Nav.Items)
+                        {
+                            if (obj is ListBoxItem li && string.Equals(li.Tag?.ToString(), "settings", StringComparison.OrdinalIgnoreCase))
+                            {
+                                Nav.SelectedItem = li;
+                                break;
+                            }
+                        }
+
+                        MainFrame?.Navigate(_settingsPage);
+                        return;
+                    }
+
+                    if (name == "open_user_profiles")
+                    {
+                        // Go directly to UserSelectPage (profiles)
+                        MainFrame?.Navigate(new UserSelectPage());
+                        return;
+                    }
+                });
             }
             catch { }
 
@@ -61,10 +162,19 @@ namespace javis
                 WindowFx.EnableAcrylic(this);
                 WindowFx.EnableRoundedCorners(this);
 
-                Title = $"JARVIS [{RuntimeSettings.Instance.Model}]";
+                UpdateWindowTitle();
 
-                MainFrame.Navigate(_homePage);
+                // Calendar(top) + Summary(bottom)
+                MainFrame.Navigate(new HomeCalendarPage(_homeVm));
+                AuxFrame?.Navigate(new HomeSummaryPage { DataContext = _homeVm });
+
                 Nav.SelectedIndex = 0;
+            };
+
+            RuntimeSettings.Instance.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(RuntimeSettings.Model) || e.PropertyName == nameof(RuntimeSettings.MainAiName))
+                    Dispatcher.InvokeAsync(UpdateWindowTitle);
             };
         }
 
@@ -80,15 +190,117 @@ namespace javis
 
             Page page = key switch
             {
-                "home" => _homePage,
+                "home" => new HomeCalendarPage(_homeVm),
                 "chat" => _chatPage,
                 "todos" => _todosPage,
                 "skills" => _skillsPage,
                 "settings" => _settingsPage,
-                _ => _homePage
+                _ => new HomeCalendarPage(_homeVm)
             };
 
             MainFrame.Navigate(page);
+
+            void SetColumnsForHome(bool isHome)
+            {
+                try
+                {
+                    // center grid is the direct parent of the pink Border
+                    if (MainFrame.Parent is not Border mainBorder) return;
+                    if (mainBorder.Parent is not Grid centerGrid) return;
+                    if (centerGrid.Parent is not Grid bodyGrid) return;
+
+                    // bodyGrid columns: 0 nav, 1 gap, 2 center, 3 gap, 4 right
+                    if (bodyGrid.ColumnDefinitions.Count < 5) return;
+
+                    if (isHome)
+                    {
+                        bodyGrid.ColumnDefinitions[1].Width = new GridLength(18);
+                        bodyGrid.ColumnDefinitions[2].Width = new GridLength(1, GridUnitType.Star);
+
+                        // Right rail always stays; actual right panel depends on toggle.
+                        bodyGrid.ColumnDefinitions[3].Width = new GridLength(18);
+                        bodyGrid.ColumnDefinitions[4].Width = _rightPanelEnabled ? new GridLength(340) : new GridLength(0);
+                    }
+                    else
+                    {
+                        // Keep rail visible on other pages too.
+                        bodyGrid.ColumnDefinitions[1].Width = new GridLength(10);
+                        bodyGrid.ColumnDefinitions[2].Width = new GridLength(1, GridUnitType.Star);
+                        bodyGrid.ColumnDefinitions[3].Width = new GridLength(18);
+                        bodyGrid.ColumnDefinitions[4].Width = _rightPanelEnabled ? new GridLength(340) : new GridLength(0);
+                    }
+                }
+                catch { }
+            }
+
+            void SetRightPanelVisible(bool show)
+            {
+                try
+                {
+                    // Host exists only on Home layout visually. If not home, always hide host.
+                    // Column width is still controlled by the toggle (so we can reserve space later if desired).
+                    var effective = show && _rightPanelEnabled;
+                    if (FindName("RightPanelHost") is FrameworkElement fe)
+                        fe.Visibility = effective ? Visibility.Visible : Visibility.Collapsed;
+                }
+                catch { }
+            }
+
+            void SetAuxPanelVisible(bool show)
+            {
+                try
+                {
+                    if (AuxFrame is null) return;
+
+                    AuxFrame.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+
+                    if (AuxFrame.Parent is Border host)
+                        host.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                }
+                catch { }
+            }
+
+            void SetMainAreaRowsForHome(bool isHome)
+            {
+                try
+                {
+                    if (MainFrame.Parent is not Border mainBorder) return;
+                    if (mainBorder.Parent is not Grid centerGrid) return;
+
+                    if (centerGrid.RowDefinitions.Count < 3) return;
+
+                    if (isHome)
+                    {
+                        centerGrid.RowDefinitions[0].Height = new GridLength(1.25, GridUnitType.Star);
+                        centerGrid.RowDefinitions[1].Height = new GridLength(18);
+                        centerGrid.RowDefinitions[2].Height = new GridLength(0.75, GridUnitType.Star);
+                    }
+                    else
+                    {
+                        centerGrid.RowDefinitions[0].Height = new GridLength(1, GridUnitType.Star);
+                        centerGrid.RowDefinitions[1].Height = new GridLength(0);
+                        centerGrid.RowDefinitions[2].Height = new GridLength(0);
+                    }
+                }
+                catch { }
+            }
+
+            var isHome = key == "home";
+
+            if (isHome)
+            {
+                AuxFrame?.Navigate(new HomeSummaryPage { DataContext = _homeVm });
+            }
+            else
+            {
+                try { AuxFrame?.Navigate(null); } catch { }
+                try { AuxFrame!.Content = null; } catch { }
+            }
+
+            SetAuxPanelVisible(isHome);
+            SetRightPanelVisible(isHome);
+            SetMainAreaRowsForHome(isHome);
+            SetColumnsForHome(isHome);
         }
 
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -99,13 +311,13 @@ namespace javis
             if (e.Key == Key.D1 || e.Key == Key.NumPad1)
             {
                 RuntimeSettings.Instance.Model = "qwen3:4b";
-                Title = $"JARVIS [{RuntimeSettings.Instance.Model}]";
+                UpdateWindowTitle();
                 e.Handled = true;
             }
             else if (e.Key == Key.D2 || e.Key == Key.NumPad2)
             {
                 RuntimeSettings.Instance.Model = "qwen3:8b";
-                Title = $"JARVIS [{RuntimeSettings.Instance.Model}]";
+                UpdateWindowTitle();
                 e.Handled = true;
             }
         }
@@ -122,6 +334,66 @@ namespace javis
 
         private void ToggleMaximize() =>
             WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+        private void RightPanelToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _rightPanelEnabled = true;
+                RuntimeSettings.Instance.HomeRightPanelEnabled = true;
+                try { RuntimeSettingsStore.SaveFrom(RuntimeSettings.Instance); } catch { }
+
+                if (FindName("RightPanelToggleGlyph") is TextBlock t)
+                    t.Text = "❮"; // collapse arrow
+
+                ApplyRightPanelState(show: true);
+            }
+            catch { }
+        }
+
+        private void RightPanelToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _rightPanelEnabled = false;
+                RuntimeSettings.Instance.HomeRightPanelEnabled = false;
+                try { RuntimeSettingsStore.SaveFrom(RuntimeSettings.Instance); } catch { }
+
+                if (FindName("RightPanelToggleGlyph") is TextBlock t)
+                    t.Text = "❯"; // expand arrow
+
+                ApplyRightPanelState(show: false);
+            }
+            catch { }
+        }
+
+        private void ApplyRightPanelState(bool show)
+        {
+            try
+            {
+                if (FindName("RightPanelHost") is FrameworkElement fe)
+                    fe.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+
+                if (MainFrame?.Parent is not Border mainBorder) return;
+                if (mainBorder.Parent is not Grid centerGrid) return;
+                if (centerGrid.Parent is not Grid bodyGrid) return;
+                if (bodyGrid.ColumnDefinitions.Count < 5) return;
+
+                if (show)
+                {
+                    // keep a small gap rail for the toggle
+                    bodyGrid.ColumnDefinitions[3].Width = new GridLength(18);
+                    bodyGrid.ColumnDefinitions[4].Width = new GridLength(340);
+                }
+                else
+                {
+                    // keep column 3 so the toggle rail stays visible
+                    bodyGrid.ColumnDefinitions[3].Width = new GridLength(18);
+                    bodyGrid.ColumnDefinitions[4].Width = new GridLength(0);
+                }
+            }
+            catch { }
+        }
     }
 
     internal static class WindowFx

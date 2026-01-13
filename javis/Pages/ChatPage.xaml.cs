@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Microsoft.Win32;
 using Jarvis.Core.Archive;
 using javis.Services;
@@ -511,6 +512,15 @@ public partial class ChatPage : Page
         if (sender is Button b) b.IsEnabled = false;
 
         AddImmediate("assistant", $"✅ 주제 고정: {topic}\n이제 이 대화는 해당 주제로만 진행할게.");
+    }
+
+    private void TopicBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        if (Keyboard.Modifiers == ModifierKeys.Shift) return;
+
+        e.Handled = true;
+        ApplyTopic_Click(sender, new RoutedEventArgs());
     }
 
     private void OnActiveUserChanged(string userId)

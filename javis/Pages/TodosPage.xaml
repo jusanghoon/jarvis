@@ -10,15 +10,15 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" CornerRadius="16" Background="#22000000" BorderBrush="#33BFE9FF" BorderThickness="1" Padding="12">
+        <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Padding="12">
             <StackPanel>
-                <TextBlock Text="Calendar" Foreground="#EAF6FF" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                <TextBlock Text="Calendar" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
                 <Calendar SelectedDate="{Binding SelectedDate}" DisplayDate="{Binding SelectedDate}"/>
-                <TextBlock Text="{Binding Status}" Foreground="#A8C7D9" Margin="0,10,0,0"/>
+                <TextBlock Text="{Binding Status}" Foreground="{StaticResource TextMuted}" Margin="0,10,0,0"/>
             </StackPanel>
         </Border>
 
-        <Border Grid.Column="2" CornerRadius="16" Background="#22000000" BorderBrush="#33BFE9FF" BorderThickness="1" Padding="12">
+        <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}" Padding="12">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -28,7 +28,7 @@
 
                 <TextBlock Grid.Row="0"
                            Text="{Binding SelectedDate, StringFormat={}{0:yyyy-MM-dd (ddd)}}"
-                           Foreground="#EAF6FF" FontSize="16" FontWeight="SemiBold"/>
+                           FontSize="16" FontWeight="SemiBold"/>
 
                 <ListBox Grid.Row="1"
                          ItemsSource="{Binding Items}"
@@ -38,7 +38,7 @@
                          ScrollViewer.VerticalScrollBarVisibility="Auto">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border CornerRadius="12" Background="#11FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" Padding="10" Margin="0,0,0,8">
+                            <Border CornerRadius="14" Background="#F7FFFFFF" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" Padding="10" Margin="0,0,0,8">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
@@ -54,10 +54,10 @@
                                               VerticalAlignment="Center"/>
 
                                     <TextBlock Grid.Column="1" Margin="10,0,10,0" VerticalAlignment="Center"
-                                               Foreground="#A8C7D9"
+                                               Foreground="{StaticResource TextMuted}"
                                                Text="{Binding Time, StringFormat={}{0:hh\\:mm}}"/>
 
-                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Foreground="#EAF6FF"
+                                    <TextBlock Grid.Column="2" VerticalAlignment="Center"
                                                Text="{Binding Title}" TextWrapping="Wrap"/>
 
                                     <Button Grid.Column="3" Content="Delete"
@@ -70,7 +70,7 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <Border Grid.Row="2" CornerRadius="12" Background="#11FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" Padding="10">
+                <Border Grid.Row="2" CornerRadius="14" Background="#F7FFFFFF" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" Padding="10">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="120"/>
@@ -79,7 +79,7 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Orientation="Vertical">
-                            <TextBlock Text="시간" Foreground="#A8C7D9" FontSize="12" Margin="2,0,0,4"/>
+                            <TextBlock Text="시간" Foreground="{StaticResource TextMuted}" FontSize="12" Margin="2,0,0,4"/>
 
                             <ComboBox Height="36"
                                       FontSize="13"
@@ -90,16 +90,16 @@
                                       IsEditable="True"
                                       IsTextSearchEnabled="False"
                                       StaysOpenOnEdit="True"
-                                      Background="#F3F6FA"
-                                      Foreground="#0B2233"
-                                      BorderBrush="#22FFFFFF"
+                                      Background="#F2FFFFFF"
+                                      Foreground="{StaticResource TextPrimary}"
+                                      BorderBrush="{StaticResource CardBorder}"
                                       Text="{Binding NewTime, UpdateSourceTrigger=PropertyChanged}"
                                       ToolTip="드롭다운에서 선택하거나 HH:mm 직접 입력">
                                 <ComboBox.Resources>
                                     <Style TargetType="ComboBoxItem">
                                         <Setter Property="FontSize" Value="13"/>
-                                        <Setter Property="Foreground" Value="#0B2233"/>
-                                        <Setter Property="Background" Value="#F3F6FA"/>
+                                        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                                        <Setter Property="Background" Value="#F2FFFFFF"/>
                                         <Setter Property="Padding" Value="10,6"/>
                                         <Setter Property="HorizontalContentAlignment" Value="Center"/>
                                     </Style>
@@ -157,15 +157,15 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Margin="10,0,10,0" Orientation="Vertical">
-                            <TextBlock Text="할 일" Foreground="#A8C7D9" FontSize="12" Margin="2,0,0,4"/>
+                            <TextBlock Text="할 일" Foreground="{StaticResource TextMuted}" FontSize="12" Margin="2,0,0,4"/>
                             <TextBox Height="36"
                                      FontSize="13"
                                      VerticalContentAlignment="Center"
                                      HorizontalContentAlignment="Left"
                                      Padding="10,0"
-                                     Background="#22FFFFFF"
-                                     Foreground="#EAF6FF"
-                                     BorderBrush="#22FFFFFF"
+                                     Background="#F2FFFFFF"
+                                     Foreground="{StaticResource TextPrimary}"
+                                     BorderBrush="{StaticResource CardBorder}"
                                      Text="{Binding NewTitle, UpdateSourceTrigger=PropertyChanged}" 
                                      ToolTip="할 일 제목"/>
                         </StackPanel>
@@ -174,9 +174,9 @@
                                 Height="36"
                                 FontSize="13"
                                 FontWeight="SemiBold"
-                                Background="#2A76D2"
-                                Foreground="#EAF6FF"
-                                BorderBrush="#33BFE9FF"
+                                Background="{StaticResource AccentBrush}"
+                                Foreground="White"
+                                BorderBrush="{StaticResource AccentBrush}"
                                 Command="{Binding AddCommand}"/>
                     </Grid>
                 </Border>

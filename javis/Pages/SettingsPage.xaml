@@ -5,19 +5,16 @@
       Background="Transparent">
 
     <Grid Margin="14">
-        <Border CornerRadius="16"
-                Background="#22000000"
-                BorderBrush="#33BFE9FF"
-                BorderThickness="1"
-                Padding="16">
-
+        <Border Style="{StaticResource CardBorderStyle}" Padding="16">
             <StackPanel>
-
-                <TextBlock Text="Settings" Foreground="#EAF6FF" FontSize="18" FontWeight="SemiBold"/>
+                <TextBlock Text="Settings" FontSize="18" FontWeight="SemiBold"/>
 
                 <!-- User -->
-                <Border Margin="0,14,0,0" CornerRadius="12"
-                        Background="#11FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1"
+                <Border Margin="0,14,0,0"
+                        CornerRadius="14"
+                        Background="#F7FFFFFF"
+                        BorderBrush="{StaticResource CardBorder}"
+                        BorderThickness="1"
                         Padding="14">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -32,12 +29,11 @@
 
                         <TextBlock Grid.Row="0" Grid.Column="0"
                                    Text="User"
-                                   Foreground="#A8C7D9"
+                                   Foreground="{StaticResource TextMuted}"
                                    VerticalAlignment="Center"/>
 
                         <TextBlock Grid.Row="0" Grid.Column="1"
                                    Text="{Binding ActiveUserName, Source={x:Static Member=services:UserProfileService.Instance}}"
-                                   Foreground="#EAF6FF"
                                    VerticalAlignment="Center"/>
 
                         <Button Grid.Row="0" Grid.Column="2"
@@ -49,19 +45,22 @@
                         <TextBlock Grid.Row="1" Grid.Column="0"
                                    Margin="0,10,0,0"
                                    Text="Note"
-                                   Foreground="#A8C7D9"
+                                   Foreground="{StaticResource TextMuted}"
                                    VerticalAlignment="Center"/>
 
                         <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
                                    Margin="0,10,0,0"
                                    Text="유저별로 Jarvis 설정/기록을 분리할 수 있습니다."
-                                   Foreground="#EAF6FF"/>
+                                   Foreground="{StaticResource TextMuted}"/>
                     </Grid>
                 </Border>
 
                 <!-- Model -->
-                <Border Margin="0,14,0,0" CornerRadius="12"
-                        Background="#11FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1"
+                <Border Margin="0,14,0,0"
+                        CornerRadius="14"
+                        Background="#F7FFFFFF"
+                        BorderBrush="{StaticResource CardBorder}"
+                        BorderThickness="1"
                         Padding="14">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -75,36 +74,39 @@
 
                         <TextBlock Grid.Row="0" Grid.Column="0"
                                    Text="Model"
-                                   Foreground="#A8C7D9"
+                                   Foreground="{StaticResource TextMuted}"
                                    VerticalAlignment="Center"/>
 
                         <ComboBox Grid.Row="0" Grid.Column="1"
                                   Height="36"
                                   Background="#F2FFFFFF"
-                                  Foreground="#0B1A2A"
-                                  BorderBrush="#22FFFFFF"
+                                  Foreground="{StaticResource TextPrimary}"
+                                  BorderBrush="{StaticResource CardBorder}"
                                   SelectedValuePath="Content"
                                   SelectedValue="{Binding Model, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                            <ComboBoxItem Content="qwen3:4b" Foreground="#0B1A2A"/>
-                            <ComboBoxItem Content="qwen3:8b" Foreground="#0B1A2A"/>
+                            <ComboBoxItem Content="qwen3:4b"/>
+                            <ComboBoxItem Content="qwen3:8b"/>
                         </ComboBox>
 
                         <TextBlock Grid.Row="1" Grid.Column="0"
                                    Margin="0,10,0,0"
                                    Text="Hotkeys"
-                                   Foreground="#A8C7D9"
+                                   Foreground="{StaticResource TextMuted}"
                                    VerticalAlignment="Center"/>
 
                         <TextBlock Grid.Row="1" Grid.Column="1"
                                    Margin="0,10,0,0"
                                    Text="Ctrl+1 = qwen3:4b / Ctrl+2 = qwen3:8b"
-                                   Foreground="#EAF6FF"/>
+                                   Foreground="{StaticResource TextMuted}"/>
                     </Grid>
                 </Border>
 
                 <!-- Updates -->
-                <Border Margin="0,14,0,0" CornerRadius="12"
-                        Background="#11FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1"
+                <Border Margin="0,14,0,0"
+                        CornerRadius="14"
+                        Background="#F7FFFFFF"
+                        BorderBrush="{StaticResource CardBorder}"
+                        BorderThickness="1"
                         Padding="14">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -115,12 +117,12 @@
 
                         <TextBlock Grid.Column="0"
                                    Text="Updates"
-                                   Foreground="#A8C7D9"
+                                   Foreground="{StaticResource TextMuted}"
                                    VerticalAlignment="Center"/>
 
                         <TextBlock Grid.Column="1"
                                    Text="나중에 적용할 업데이트/변경사항 메모"
-                                   Foreground="#EAF6FF"
+                                   Foreground="{StaticResource TextMuted}"
                                    VerticalAlignment="Center"/>
 
                         <Button Grid.Column="2"
@@ -130,7 +132,6 @@
                                 Padding="12,6"/>
                     </Grid>
                 </Border>
-
             </StackPanel>
         </Border>
     </Grid>

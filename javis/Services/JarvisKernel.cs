@@ -64,7 +64,19 @@ public sealed class JarvisKernel
 
         Fossils = new FossilQueryService(Logger.LogsDir);
 
-        Persona = new PersonaManager(DataDir);
+        // Defaults (will be rebound when active user is loaded)
+        PersonalDataDir = UserProfileService.Instance.ActiveUserDataDir;
+        PersonalCanon = new KnowledgeCanon(PersonalDataDir);
+        PersonalVault = new VaultManager(PersonalDataDir);
+        PersonalVaultIndex = new VaultIndexManager(PersonalDataDir);
+        PersonalDailyNotes = new DailyObservationNotes(PersonalDataDir);
+
+        // Bootstrap Jaemin persona into *active user's* persona folder, if persona files are missing.
+        // This runs before PersonaManager initialization so the manager immediately loads generated persona.
+        JaeminPersonaBootstrapper.EnsureJaeminPersonaFromPdfIfPresent(PersonalDataDir);
+
+        var personaDir = Path.Combine(PersonalDataDir, "persona");
+        Persona = new PersonaManager(personaDir);
         Persona.Initialize();
 
         Vault = new VaultManager(DataDir);
@@ -72,13 +84,6 @@ public sealed class JarvisKernel
         DailyNotes = new DailyObservationNotes(DataDir);
 
         Plugins = new PluginManager(PluginsDir, Runtime);
-
-        // Defaults (will be rebound when active user is loaded)
-        PersonalDataDir = UserProfileService.Instance.ActiveUserDataDir;
-        PersonalCanon = new KnowledgeCanon(PersonalDataDir);
-        PersonalVault = new VaultManager(PersonalDataDir);
-        PersonalVaultIndex = new VaultIndexManager(PersonalDataDir);
-        PersonalDailyNotes = new DailyObservationNotes(PersonalDataDir);
 
         try
         {
@@ -107,6 +112,11 @@ public sealed class JarvisKernel
         PersonalVault = new VaultManager(PersonalDataDir);
         PersonalVaultIndex = new VaultIndexManager(PersonalDataDir);
         PersonalDailyNotes = new DailyObservationNotes(PersonalDataDir);
+
+        // If switching to a user without persona files, bootstrap again.
+        JaeminPersonaBootstrapper.EnsureJaeminPersonaFromPdfIfPresent(PersonalDataDir);
+
+        try { Persona.Reload(); } catch { }
     }
 
     public void Initialize()

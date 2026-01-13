@@ -7,40 +7,7 @@
       mc:Ignorable="d"
       Background="Transparent">
 
-    <Page.Resources>
-        <Style x:Key="RoomTabStyle" TargetType="ToggleButton">
-            <Setter Property="Padding" Value="14,6"/>
-            <Setter Property="MinWidth" Value="54"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Foreground" Value="#EAF6FF"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Border x:Name="Bd" CornerRadius="14" BorderBrush="#4A4A4A" Background="#2B2F36" BorderThickness="1">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#3B82F6"/>
-                                <Setter Property="Foreground" Value="White"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#3B82F6"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#7A7A7A"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style TargetType="Button">
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="MinWidth" Value="90"/>
-        </Style>
-    </Page.Resources>
-
-    <Grid x:Name="ChatRoot" Margin="14" AllowDrop="True" Drop="ChatRoot_Drop">
+    <Grid x:Name="ChatRoot" Margin="12" AllowDrop="True" Drop="ChatRoot_Drop">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -49,19 +16,19 @@
         </Grid.RowDefinitions>
 
         <!-- (A) Top fixed action bar (back only) -->
-        <DockPanel Grid.Row="0" x:Name="TopCommandBar" LastChildFill="True" Margin="0,0,0,8">
-            <Button Content="← 뒤로가기" Click="Back_Click" HorizontalAlignment="Left" Padding="12,6"/>
+        <DockPanel Grid.Row="0" x:Name="TopCommandBar" LastChildFill="True" Margin="0,0,0,6">
+            <Button Content="← 뒤로가기" Click="Back_Click" HorizontalAlignment="Left" Padding="10,6"/>
 
             <Button x:Name="MainHistoryButton"
                     DockPanel.Dock="Right"
                     Content="이전 기록"
                     Click="MainHistory_Click"
-                    Padding="12,6"
+                    Padding="10,6"
                     Visibility="Collapsed"/>
         </DockPanel>
 
         <!-- (A2) Topic command bar -->
-        <Border Grid.Row="1" CornerRadius="12" Background="#22000000" BorderBrush="#33BFE9FF" BorderThickness="1" Padding="12" Margin="0,0,0,8">
+        <Border Grid.Row="1" Style="{StaticResource SubCardBorderStyle}" Margin="0,0,0,6">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -69,19 +36,18 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Text="주제" Foreground="#EAF6FF" VerticalAlignment="Center" Margin="0,0,10,0" FontSize="14"/>
+                <TextBlock Text="주제" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="0,0,10,0" FontSize="14"/>
 
                 <TextBox x:Name="TopicBox"
                          Grid.Column="1"
+                         Style="{StaticResource PastelInputTextBox}"
                          Height="38"
-                         VerticalContentAlignment="Center"
-                         Background="#22FFFFFF"
-                         BorderBrush="#22FFFFFF"
-                         Foreground="#EAF6FF"
-                         Padding="10,6"
-                         Text="{Binding Topic, UpdateSourceTrigger=PropertyChanged}" />
+                         Padding="6,2"
+                         Text="{Binding Topic, UpdateSourceTrigger=PropertyChanged}"
+                         KeyDown="TopicBox_KeyDown" />
 
-                <Button Grid.Column="2" Content="적용" Margin="10,0,0,0" MinWidth="70" Height="38" Click="ApplyTopic_Click"/>
+                <Button Grid.Column="2" Content="적용" Margin="10,0,0,0" MinWidth="70" Height="38" Click="ApplyTopic_Click"
+                        Background="{StaticResource AccentBrush}" Foreground="White" BorderBrush="{StaticResource AccentBrush}"/>
             </Grid>
         </Border>
 
@@ -91,13 +57,13 @@
                  ItemsSource="{Binding MessagesView}"
                  Background="Transparent"
                  BorderThickness="0"
+                 Padding="0"
                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  ScrollViewer.CanContentScroll="True"
                  VirtualizingStackPanel.IsVirtualizing="True"
                  VirtualizingStackPanel.VirtualizationMode="Recycling">
 
-            <!-- 내용이 비어있는/커서만 있는 메시지는 화면에 표시하지 않음 -->
             <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
                     <Setter Property="Visibility" Value="Visible"/>
@@ -106,7 +72,6 @@
                         <DataTrigger Binding="{Binding Text}" Value="">
                             <Setter Property="Visibility" Value="Collapsed"/>
                         </DataTrigger>
-                        <!-- 스트리밍 placeholder 커서만 남는 경우 -->
                         <DataTrigger Binding="{Binding Text}" Value="|">
                             <Setter Property="Visibility" Value="Collapsed"/>
                         </DataTrigger>
@@ -121,23 +86,22 @@
                 <DataTemplate DataType="{x:Type models:ChatMessage}">
                     <Border x:Name="Bubble"
                             CornerRadius="16"
-                            Padding="16"
-                            MaxWidth="720"
-                            Background="#22000000"
-                            BorderBrush="#33BFE9FF"
+                            Padding="14"
+                            MaxWidth="760"
+                            Background="{StaticResource ChatBubbleBaseBg}"
+                            BorderBrush="{StaticResource CardBorder}"
                             BorderThickness="1"
-                            Margin="0,10,0,10"
+                            Margin="0,6,0,6"
                             HorizontalAlignment="Left">
                         <StackPanel>
                             <TextBlock x:Name="Speaker"
-                                       Margin="0,0,0,8"
+                                       Margin="0,0,0,6"
                                        FontSize="12"
                                        Opacity="0.75"
-                                       Foreground="#EAF6FF"
+                                       Foreground="{StaticResource TextMuted}"
                                        Text="Jarvis"
                                        FontFamily="Segoe UI, Segoe UI Emoji"/>
                             <TextBlock Text="{Binding Text}"
-                                       Foreground="#EAF6FF"
                                        TextWrapping="Wrap"
                                        TextTrimming="None"
                                        FontSize="16"
@@ -147,31 +111,28 @@
                     </Border>
 
                     <DataTemplate.Triggers>
-                        <!-- User: right -->
                         <DataTrigger Binding="{Binding Role}" Value="user">
                             <Setter TargetName="Bubble" Property="HorizontalAlignment" Value="Right"/>
-                            <Setter TargetName="Bubble" Property="Background" Value="#223AA0FF"/>
-                            <Setter TargetName="Bubble" Property="BorderBrush" Value="#553AA0FF"/>
+                            <Setter TargetName="Bubble" Property="Background" Value="{StaticResource ChatBubbleUserBg}"/>
+                            <Setter TargetName="Bubble" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
                             <Setter TargetName="Speaker" Property="Text" Value="You"/>
                         </DataTrigger>
 
-                        <!-- Agent A: left -->
-                        <DataTrigger Binding="{Binding Role}" Value="assistant_a">
-                            <Setter TargetName="Bubble" Property="HorizontalAlignment" Value="Left"/>
-                            <Setter TargetName="Bubble" Property="Background" Value="#2222C55E"/>
-                            <Setter TargetName="Bubble" Property="BorderBrush" Value="#5522C55E"/>
-                            <Setter TargetName="Speaker" Property="Text" Value="AI A"/>
-                        </DataTrigger>
-
-                        <!-- Agent B: right -->
                         <DataTrigger Binding="{Binding Role}" Value="assistant_b">
                             <Setter TargetName="Bubble" Property="HorizontalAlignment" Value="Right"/>
-                            <Setter TargetName="Bubble" Property="Background" Value="#22F97316"/>
-                            <Setter TargetName="Bubble" Property="BorderBrush" Value="#55F97316"/>
+                            <Setter TargetName="Bubble" Property="Background" Value="{StaticResource ChatBubbleAgentBBg}"/>
+                            <Setter TargetName="Bubble" Property="BorderBrush" Value="{StaticResource AccentBrush2}"/>
                             <Setter TargetName="Speaker" Property="Text" Value="AI B"/>
                         </DataTrigger>
 
-                        <!-- Default assistant: left -->
+                        <!-- assistant / assistant_a stay left -->
+                        <DataTrigger Binding="{Binding Role}" Value="assistant_a">
+                            <Setter TargetName="Bubble" Property="HorizontalAlignment" Value="Left"/>
+                            <Setter TargetName="Bubble" Property="Background" Value="{StaticResource ChatBubbleAgentABg}"/>
+                            <Setter TargetName="Bubble" Property="BorderBrush" Value="{StaticResource AccentBrush2}"/>
+                            <Setter TargetName="Speaker" Property="Text" Value="AI A"/>
+                        </DataTrigger>
+
                         <DataTrigger Binding="{Binding Role}" Value="assistant">
                             <Setter TargetName="Bubble" Property="HorizontalAlignment" Value="Left"/>
                             <Setter TargetName="Speaker" Property="Text" Value="Jarvis"/>
@@ -182,7 +143,7 @@
         </ListBox>
 
         <!-- (C) Bottom input bar -->
-        <Border Grid.Row="3" CornerRadius="16" Background="#22000000" BorderBrush="#33BFE9FF" BorderThickness="1" Padding="12" Margin="0,8,0,0">
+        <Border Grid.Row="3" Style="{StaticResource SubCardBorderStyle}" Margin="0,6,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -195,55 +156,52 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Room tabs (left) -->
-                <StackPanel x:Name="RoomTabsPanel" Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                    <ToggleButton x:Name="RoomMainTab" Content="ME" Style="{StaticResource RoomTabStyle}" Click="RoomMain_Click" IsChecked="True"/>
-                    <ToggleButton x:Name="RoomSoloTab" Content="SOLO" Style="{StaticResource RoomTabStyle}" Margin="8,0,0,0" Click="RoomSolo_Click"/>
-                    <ToggleButton x:Name="RoomDuoTab" Content="DUO" Style="{StaticResource RoomTabStyle}" Margin="8,0,0,0" Click="RoomDuo_Click"/>
+                <StackPanel x:Name="RoomTabsPanel" Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <ToggleButton x:Name="RoomMainTab" Content="ME" Style="{StaticResource ChatRoomTabStyle}" Click="RoomMain_Click" IsChecked="True"/>
+                    <ToggleButton x:Name="RoomSoloTab" Content="SOLO" Style="{StaticResource ChatRoomTabStyle}" Margin="8,0,0,0" Click="RoomSolo_Click"/>
+                    <ToggleButton x:Name="RoomDuoTab" Content="DUO" Style="{StaticResource ChatRoomTabStyle}" Margin="8,0,0,0" Click="RoomDuo_Click"/>
                 </StackPanel>
 
-                <!-- Input -->
                 <TextBox x:Name="InputBox"
                          Grid.Row="0" Grid.Column="1"
-                         Height="54"
-                         AcceptsReturn="True"
-                         TextWrapping="Wrap"
-                         VerticalContentAlignment="Center"
-                         Background="#22FFFFFF"
-                         BorderBrush="#22FFFFFF"
-                         Foreground="#EAF6FF"
-                         Padding="12"
+                         Height="52"
+                         Style="{StaticResource PastelChatInputTextBox}"
+                         Foreground="#FF0F172A"
+                         FontSize="19"
+                         Padding="6,2"
                          Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
                          PreviewKeyDown="InputBox_PreviewKeyDown"/>
 
-                <!-- Send/Cancel -->
-                <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Margin="12,0,12,0" VerticalAlignment="Center">
-                    <Button Margin="0,0,8,0" MinWidth="90" Height="54" Content="Send" Command="{Binding SendCommand}"/>
-                    <Button MinWidth="90" Height="54" Content="Cancel" Command="{Binding CancelCommand}"/>
+                <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Margin="10,0,10,0" VerticalAlignment="Center">
+                    <Button Margin="0,0,8,0" Height="52" MinWidth="84" Content="Send" Command="{Binding SendCommand}"
+                            Background="{StaticResource AccentBrush}" Foreground="White" BorderBrush="{StaticResource AccentBrush}"/>
+                    <Button Height="52" MinWidth="84" Content="Cancel" Command="{Binding CancelCommand}"/>
                 </StackPanel>
 
-                <!-- Existing SOLO/DUO toggles (execution) -->
                 <StackPanel x:Name="BigModeButtonsPanel" Grid.Row="0" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                     <ToggleButton x:Name="SoloToggle"
                                   Content="SOLO"
                                   Width="110"
                                   Margin="0,0,8,0"
+                                  Style="{StaticResource ChatModeToggleStyle}"
                                   Checked="SoloToggle_Checked"
                                   Unchecked="SoloToggle_Unchecked"/>
 
                     <ToggleButton x:Name="DuoToggle"
                                   Content="DUO"
                                   Width="90"
+                                  Style="{StaticResource ChatModeToggleStyle}"
                                   Checked="DuoToggle_Checked"
                                   Unchecked="DuoToggle_Unchecked"/>
                 </StackPanel>
 
                 <TextBlock x:Name="SoloStatusText"
                            Grid.Row="1" Grid.ColumnSpan="4"
-                           Margin="12,6,0,0"
+                           Margin="10,6,0,0"
                            Opacity="0.75"
                            Visibility="Collapsed"
                            Text=""
+                           Foreground="{StaticResource TextMuted}"
                            FontFamily="Segoe UI, Segoe UI Emoji"/>
             </Grid>
         </Border>

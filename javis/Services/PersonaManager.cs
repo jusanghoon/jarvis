@@ -21,9 +21,33 @@ public sealed class PersonaManager : IDisposable
     private readonly string _chatPath;
     private readonly string _soloPath;
 
-    public PersonaManager(string dataDir)
+    public PersonaManager(string dataDirOrPersonaDir)
     {
-        PersonaDir = Path.Combine(dataDir, "persona");
+        // Back-compat:
+        // - If caller passes a user data dir, persona lives in <dir>/persona
+        // - If caller passes an explicit persona dir (ends with /persona or contains core.txt), use it as-is
+        var input = (dataDirOrPersonaDir ?? string.Empty).Trim();
+        if (input.Length == 0) input = AppDomain.CurrentDomain.BaseDirectory;
+
+        var candidatePersonaDir = input;
+
+        try
+        {
+            var name = Path.GetFileName(input.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            var looksLikePersonaDir = name.Equals("persona", StringComparison.OrdinalIgnoreCase) ||
+                                      File.Exists(Path.Combine(input, "core.txt")) ||
+                                      File.Exists(Path.Combine(input, "chat_overlay.txt")) ||
+                                      File.Exists(Path.Combine(input, "solo_overlay.txt"));
+
+            if (!looksLikePersonaDir)
+                candidatePersonaDir = Path.Combine(input, "persona");
+        }
+        catch
+        {
+            candidatePersonaDir = Path.Combine(input, "persona");
+        }
+
+        PersonaDir = candidatePersonaDir;
         Directory.CreateDirectory(PersonaDir);
 
         _corePath = Path.Combine(PersonaDir, "core.txt");
@@ -110,7 +134,7 @@ public sealed class PersonaManager : IDisposable
 
 [GLOSSARY]
 - \uADE0\uC5F4: \uC2DC\uC2A4\uD15C \uC624\uB958/\uC678\uBD80 \uCDA9\uACA9. \uC2E4\uD328\uAC00 \uC544\uB2CC \uC131\uC7A5 \uCD09\uB9E4.
-- \uAC1C\uB150\uC758 \uC9C4\uD654: \uAE30\uC874 \uAC1C\uB150\uC744 \uC528\uC557\uC73C\uB85C \uB2E4\uC74C \uB2E8\uACC4\uB85C \uBC1C\uC804\uC2DC\uD0A4\uB294 \uACFC\uC815.
+- \uAC1C\uB150\uC758 \uC9C4\uD654: \uAE30\uC874 \uAC1C\uB150\uC744 \uC528\uC557\uC73C\uB85C \uB2E4\uC74C \uB2E8\uACC4\uB85C \uBC1C\uC904\uC2DC\uD0A4\uB294 \uACFC\uC815.
 - \uC9C0\uC2DD\uC758 \uC0C1\uC804\uC774: \uD65C\uC131/\uB300\uAE30/\uC720\uD734/\uD654\uC11D \uC0C1\uD0DC \uAC04 \uC774\uB3D9.
 - \uACF5\uC720 \uC544\uCE74\uC774\uBE0C: \uD569\uC758\uB41C \uB2E8\uC77C \uC9C4\uC2E4 \uACF5\uAE09\uC6D0(SSOT).
 - \uB3D9\uC801 \uAE30\uB2A5 \uC704\uC784: \uBC18\uBCF5 \uC791\uC5C5\uC740 \uC790\uB3D9\uD654(\uC9C1\uC6D0/\uC11C\uBE0C\uB8E8\uD2F4)\uB85C \uC704\uC784\uD558\uC5EC \uCD5C\uC801\uD654.

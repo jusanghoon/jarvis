@@ -10,4 +10,10 @@ public sealed partial class RuntimeSettings : ObservableObject
 
     [ObservableProperty]
     private string _model = "gemma3:1b";
+
+    [ObservableProperty]
+    private string _mainAiName = "재민";
+
+    [ObservableProperty]
+    private bool _homeRightPanelEnabled = true;
 }

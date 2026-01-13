@@ -9,46 +9,49 @@
         <local:DateHasTodoToVisibilityConverter x:Key="DateHasTodoVis"/>
 
         <Style x:Key="TodoCalendarDayButtonStyle" TargetType="{x:Type CalendarDayButton}">
+            <Setter Property="MinWidth" Value="36"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#FF1F2B36"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type CalendarDayButton}">
-                        <Grid>
-                            <Border x:Name="Bd"
-                                    CornerRadius="8"
-                                    Background="Transparent"
-                                    BorderBrush="Transparent"
-                                    BorderThickness="1"
-                                    Padding="2">
-                                <Grid>
-                                    <ContentPresenter HorizontalAlignment="Center"
-                                                      VerticalAlignment="Center"/>
+                        <Border x:Name="Bd"
+                                CornerRadius="10"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="1"
+                                Padding="2">
+                            <Grid>
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
 
-                                    <Ellipse Width="4" Height="4"
-                                             VerticalAlignment="Bottom"
-                                             Margin="0,0,0,3"
-                                             Fill="#BFE9FF">
-                                        <Ellipse.Visibility>
-                                            <MultiBinding Converter="{StaticResource DateHasTodoVis}">
-                                                <Binding />
-                                                <Binding Path="DataContext.TodoDates"
-                                                         RelativeSource="{RelativeSource AncestorType=Calendar}"/>
-                                            </MultiBinding>
-                                        </Ellipse.Visibility>
-                                    </Ellipse>
-                                </Grid>
-                            </Border>
-                        </Grid>
+                                <Ellipse Width="7" Height="7"
+                                         VerticalAlignment="Bottom"
+                                         Margin="0,0,0,3"
+                                         Fill="#7BCBFF">
+                                    <Ellipse.Visibility>
+                                        <MultiBinding Converter="{StaticResource DateHasTodoVis}">
+                                            <Binding />
+                                            <Binding Path="DataContext.TodoDates"
+                                                     RelativeSource="{RelativeSource AncestorType=Calendar}"/>
+                                        </MultiBinding>
+                                    </Ellipse.Visibility>
+                                </Ellipse>
+                            </Grid>
+                        </Border>
 
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#334FC3FF"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#66BFE9FF"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#BB7BB6FF"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#CC5A9DFF"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#55BFE9FF"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#66FFFFFF"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#55B39DFF"/>
                             </Trigger>
                             <Trigger Property="IsToday" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#88FFFFFF"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#AAFFFFFF"/>
                             </Trigger>
                             <Trigger Property="IsInactive" Value="True">
                                 <Setter Property="Opacity" Value="0.45"/>
@@ -58,37 +61,45 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="TodoCalendarStyle" TargetType="{x:Type Calendar}">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#FF1F2B36"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CalendarDayButtonStyle" Value="{StaticResource TodoCalendarDayButtonStyle}"/>
+        </Style>
     </Page.Resources>
 
     <Grid Margin="14">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="340"/>
+            <ColumnDefinition Width="360"/>
             <ColumnDefinition Width="16"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <Border Grid.Column="0"
-                CornerRadius="16"
-                Background="#22000000"
-                BorderBrush="#33BFE9FF"
+                CornerRadius="18"
+                Background="#CCFFFFFF"
+                BorderBrush="#33FFFFFF"
                 BorderThickness="1"
-                Padding="12">
+                Padding="14">
             <StackPanel>
-                <TextBlock Text="캘린더" Foreground="#EAF6FF" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                <TextBlock Text="캘린더" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
                 <Calendar SelectedDate="{Binding SelectedDate}"
                           DisplayDate="{Binding SelectedDate}"
-                          CalendarDayButtonStyle="{StaticResource TodoCalendarDayButtonStyle}" />
+                          Style="{StaticResource TodoCalendarStyle}" />
                 <TextBlock Text="{Binding SelectedDate, StringFormat={}{0:yyyy-MM-dd (ddd)}}"
-                           Foreground="#A8C7D9" Margin="0,10,0,0"/>
+                           Foreground="#55606C" Margin="0,10,0,0"/>
             </StackPanel>
         </Border>
 
         <Border Grid.Column="2"
-                CornerRadius="16"
-                Background="#22000000"
-                BorderBrush="#33BFE9FF"
+                CornerRadius="18"
+                Background="#CCFFFFFF"
+                BorderBrush="#33FFFFFF"
                 BorderThickness="1"
-                Padding="12">
+                Padding="14">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -99,14 +110,14 @@
 
                 <TextBlock Grid.Row="0"
                            Text="다가오는 할 일 (Top 3)"
-                           Foreground="#EAF6FF"
+                           Foreground="#FF1F2B36"
                            FontSize="16"
                            FontWeight="SemiBold"/>
 
                 <TextBlock Grid.Row="1"
                            Margin="0,8,0,12"
                            Text="{Binding SummaryText}"
-                           Foreground="#A8C7D9"/>
+                           Foreground="#55606C"/>
 
                 <ListBox Grid.Row="2"
                          ItemsSource="{Binding UpcomingTop3}"
@@ -117,8 +128,8 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border CornerRadius="12"
-                                    Background="#11FFFFFF"
-                                    BorderBrush="#22FFFFFF"
+                                    Background="#66FFFFFF"
+                                    BorderBrush="#33FFFFFF"
                                     BorderThickness="1"
                                     Padding="10"
                                     Margin="0,0,0,10">
@@ -130,15 +141,15 @@
                                     </Grid.ColumnDefinitions>
 
                                     <TextBlock Grid.Column="0"
-                                               Foreground="#A8C7D9"
+                                               Foreground="#55606C"
                                                Text="{Binding Date, StringFormat={}{0:MM-dd (ddd)}}"/>
 
                                     <TextBlock Grid.Column="1"
-                                               Foreground="#A8C7D9"
+                                               Foreground="#55606C"
                                                Text="{Binding Time, StringFormat={}{0:hh\\:mm}}"/>
 
                                     <TextBlock Grid.Column="2"
-                                               Foreground="#EAF6FF"
+                                               Foreground="#FF1F2B36"
                                                Text="{Binding Title}"
                                                TextWrapping="Wrap"/>
                                 </Grid>
@@ -147,12 +158,10 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <!-- 최근 Fossil -->
                 <StackPanel Grid.Row="3" Margin="0,12,0,0">
-                    <TextBlock Text="최근 Fossil" FontWeight="SemiBold" FontSize="14" Foreground="#EAF6FF" Margin="0,0,0,6"/>
+                    <TextBlock Text="최근 Fossil" FontWeight="SemiBold" FontSize="14" Foreground="#FF1F2B36" Margin="0,0,0,6"/>
 
-                    <!-- 로딩 -->
-                    <TextBlock Text="불러오는 중..." Opacity="0.7" Foreground="#A8C7D9">
+                    <TextBlock Text="불러오는 중..." Opacity="0.7" Foreground="#55606C">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -165,7 +174,6 @@
                         </TextBlock.Style>
                     </TextBlock>
 
-                    <!-- 오류 -->
                     <TextBlock Text="{Binding FossilsError}" Foreground="Tomato" TextWrapping="Wrap">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
@@ -178,8 +186,7 @@
                         </TextBlock.Style>
                     </TextBlock>
 
-                    <!-- 빈 상태 -->
-                    <TextBlock Text="아직 기록이 없습니다" Opacity="0.7" Foreground="#A8C7D9">
+                    <TextBlock Text="아직 기록이 없습니다" Opacity="0.7" Foreground="#55606C">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -196,25 +203,24 @@
                         </TextBlock.Style>
                     </TextBlock>
 
-                    <!-- 리스트 -->
                     <ListBox x:Name="FossilList"
                             ItemsSource="{Binding RecentFossils}" Margin="0,6,0,0" Background="Transparent" BorderThickness="0" ScrollViewer.VerticalScrollBarVisibility="Auto"
                             MouseDoubleClick="FossilList_MouseDoubleClick">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border CornerRadius="10" Padding="10" Margin="0,0,0,8" BorderThickness="1" BorderBrush="#22FFFFFF" Background="#11FFFFFF">
+                                <Border CornerRadius="10" Padding="10" Margin="0,0,0,8" BorderThickness="1" BorderBrush="#33FFFFFF" Background="#66FFFFFF">
                                     <StackPanel>
                                         <DockPanel LastChildFill="True">
-                                            <TextBlock DockPanel.Dock="Left" Foreground="#A8C7D9" FontSize="12" Opacity="0.9"
+                                            <TextBlock DockPanel.Dock="Left" Foreground="#55606C" FontSize="12" Opacity="0.9"
                                                        Text="{Binding Ts, StringFormat={}{0:MM-dd HH:mm}}" />
 
-                                            <Border DockPanel.Dock="Right" CornerRadius="8" Padding="6,2" Background="#11000000">
-                                                <TextBlock Foreground="#A8C7D9" FontSize="12" Opacity="0.9"
+                                            <Border DockPanel.Dock="Right" CornerRadius="8" Padding="6,2" Background="#33FFFFFF">
+                                                <TextBlock Foreground="#55606C" FontSize="12" Opacity="0.9"
                                                            Text="{Binding SourceCount, StringFormat=Sources: {0}}" />
                                             </Border>
                                         </DockPanel>
 
-                                        <TextBlock Foreground="#EAF6FF" Margin="0,6,0,0"
+                                        <TextBlock Foreground="#FF1F2B36" Margin="0,6,0,0"
                                                    Text="{Binding Content}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
                                 </Border>

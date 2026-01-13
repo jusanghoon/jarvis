@@ -3,14 +3,13 @@ using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Globalization;
+using System.Windows.Input;
 using javis.Services;
 using javis.Services.Inbox;
 
 namespace javis
 {
-    /// <summary>
-    /// Interaction logic for App.xaml
-    /// </summary>
     public partial class App : Application
     {
         public static JarvisKernel Kernel { get; private set; } = null!;
@@ -18,6 +17,35 @@ namespace javis
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
+            try
+            {
+                // Prefer Korean input method (Hangul) at startup.
+                var ko = new CultureInfo("ko-KR");
+                InputLanguageManager.Current.CurrentInputLanguage = ko;
+                InputMethod.Current.ImeState = InputMethodState.On;
+            }
+            catch { }
+
+            try
+            {
+                RuntimeSettingsStore.LoadInto(RuntimeSettings.Instance);
+            }
+            catch { }
+
+            try
+            {
+                Exit += (_, __) =>
+                {
+                    try { RuntimeSettingsStore.SaveFrom(RuntimeSettings.Instance); } catch { }
+                };
+
+                SessionEnding += (_, __) =>
+                {
+                    try { RuntimeSettingsStore.SaveFrom(RuntimeSettings.Instance); } catch { }
+                };
+            }
+            catch { }
 
             Kernel = new JarvisKernel();
             Kernel.Initialize();
@@ -48,6 +76,25 @@ namespace javis
                     }
                     catch { }
                 };
+            }
+            catch { }
+
+            // One-time: enqueue planned feature into suggestions (per profile)
+            try
+            {
+                var dataDir = UserProfileService.Instance.ActiveUserDataDir;
+                var guardDir = System.IO.Path.Combine(dataDir, "main_ai");
+                System.IO.Directory.CreateDirectory(guardDir);
+                var guardPath = System.IO.Path.Combine(guardDir, "planned_device_diagnostics.v1");
+
+                if (!System.IO.File.Exists(guardPath))
+                {
+                    javis.Services.MainAi.MainAiDocBus.PublishSuggestion(
+                        text: "[기획] 장치 진단(환경 정보 수집) 기능\n- 목적: 자비스 실행 환경(PC 성능/OS/저장공간)과 설치 프로그램 목록을 요약해 표시\n- 범위: CPU/RAM/디스크/OS/그래픽 요약, 설치 프로그램(Windows 레지스트리 기반) 목록\n- 제약: 권한 없는 제어/침투 없음(조회/요약만), 민감정보는 수집/저장하지 않음\n- UI: Settings에 토글/실행 버튼 추가, 결과는 Updates/Log에도 남길 수 있게\n- 출력: 프로필별 저장 폴더에 JSON 저장(옵션)",
+                        source: "planned_feature");
+
+                    System.IO.File.WriteAllText(guardPath, DateTimeOffset.Now.ToString("O"), new System.Text.UTF8Encoding(true));
+                }
             }
             catch { }
 
@@ -137,6 +184,12 @@ namespace javis
 
         protected override async void OnExit(ExitEventArgs e)
         {
+            try
+            {
+                RuntimeSettingsStore.SaveFrom(RuntimeSettings.Instance);
+            }
+            catch { }
+
             try
             {
                 try { javis.Services.MainAi.MainAiOrchestrator.Instance.Stop(); } catch { }

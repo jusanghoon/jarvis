@@ -1,0 +1,57 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Pastel palette (soft, cute) -->
+    <Color x:Key="PastelBg">#FFF7FBFF</Color>
+    <Color x:Key="PastelText">#FF2B2B2B</Color>
+    <Color x:Key="PastelMuted">#FF5E6A76</Color>
+
+    <Color x:Key="PastelCardBg">#CCFFFFFF</Color>
+    <Color x:Key="PastelCardBorder">#33B39DFF</Color>
+
+    <Color x:Key="PastelAccent">#FF7BB6FF</Color>
+    <Color x:Key="PastelAccent2">#FFFF9BC1</Color>
+
+    <Color x:Key="PastelButtonBg">#FFF2F7FF</Color>
+    <Color x:Key="PastelButtonHover">#FFE8F1FF</Color>
+    <Color x:Key="PastelButtonPressed">#FFDCEAFF</Color>
+    <Color x:Key="PastelButtonBorder">#66B39DFF</Color>
+
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="{StaticResource PastelBg}"/>
+    <SolidColorBrush x:Key="TextPrimary" Color="{StaticResource PastelText}"/>
+    <SolidColorBrush x:Key="TextMuted" Color="{StaticResource PastelMuted}"/>
+
+    <SolidColorBrush x:Key="CardBackground" Color="{StaticResource PastelCardBg}"/>
+    <SolidColorBrush x:Key="CardBorder" Color="{StaticResource PastelCardBorder}"/>
+
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource PastelAccent}"/>
+    <SolidColorBrush x:Key="AccentBrush2" Color="{StaticResource PastelAccent2}"/>
+
+    <SolidColorBrush x:Key="ButtonBg" Color="{StaticResource PastelButtonBg}"/>
+    <SolidColorBrush x:Key="ButtonBgHover" Color="{StaticResource PastelButtonHover}"/>
+    <SolidColorBrush x:Key="ButtonBgPressed" Color="{StaticResource PastelButtonPressed}"/>
+    <SolidColorBrush x:Key="ButtonBorder" Color="{StaticResource PastelButtonBorder}"/>
+
+    <!-- Background image (place your image at: Assets/Backgrounds/pastel_bg.png) -->
+    <ImageBrush x:Key="PastelBackgroundImageBrush"
+                ImageSource="pack://application:,,,/javis;component/Assets/Backgrounds/pastel_bg.png"
+                Stretch="UniformToFill"
+                Opacity="1"/>
+
+    <!-- Panel tints (like the reference image) -->
+    <SolidColorBrush x:Key="PanelPinkBg" Color="#EFFFF2F7"/>
+    <SolidColorBrush x:Key="PanelPinkBorder" Color="#66FF9BC1"/>
+
+    <SolidColorBrush x:Key="PanelMintBg" Color="#EFFFFAF0"/>
+    <SolidColorBrush x:Key="PanelMintBorder" Color="#6697E39F"/>
+
+    <SolidColorBrush x:Key="PanelBlueBg" Color="#EEECF6FF"/>
+    <SolidColorBrush x:Key="PanelBlueBorder" Color="#6687C7FF"/>
+
+    <!-- Chat bubble colors -->
+    <SolidColorBrush x:Key="ChatBubbleBaseBg" Color="#F7FFFFFF"/>
+    <SolidColorBrush x:Key="ChatBubbleUserBg" Color="#FFEAF4FF"/>
+    <SolidColorBrush x:Key="ChatBubbleAgentABg" Color="#EFFFF7F1"/>
+    <SolidColorBrush x:Key="ChatBubbleAgentBBg" Color="#FFFFF1F6"/>
+
+</ResourceDictionary>

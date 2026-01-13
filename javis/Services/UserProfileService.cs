@@ -382,7 +382,14 @@ public sealed partial class UserProfileService : ObservableObject
         return dir;
     }
 
-    public string ActiveUserDataDir => GetUserDataDir(ActiveUserId);
+    public string ActiveUserDataDir
+    {
+        get
+        {
+            EnsureDefaultProfile();
+            return GetUserDataDir(ActiveUserId);
+        }
+    }
 }
 
 public sealed record UserProfile(string Id, string DisplayName, DateTimeOffset CreatedAt)

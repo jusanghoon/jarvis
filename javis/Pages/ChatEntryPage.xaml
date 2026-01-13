@@ -7,20 +7,101 @@
       Background="Transparent"
       Title="ChatEntry">
 
-    <Grid Margin="24">
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="420">
-            <StackPanel.Resources>
-                <Style TargetType="Button">
-                    <Setter Property="Height" Value="56"/>
-                    <Setter Property="FontSize" Value="18"/>
-                    <Setter Property="Padding" Value="16,10"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                </Style>
-            </StackPanel.Resources>
+    <Grid Margin="0">
+        <Border HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Margin="0"
+                Style="{StaticResource CardBorderStyle}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-            <Button Content="1. 자비스와 채팅하기" Click="MainChat_Click"/>
-            <Button Content="2. 자비스 혼자 생각하기" Margin="0,14,0,0" Click="SoloThink_Click"/>
-            <Button Content="3. 자비스와 친구끼리 토론하기" Margin="0,14,0,0" Click="DuoDebate_Click"/>
-        </StackPanel>
+                <TextBlock Grid.Row="0" Text="Chat" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,12"/>
+
+                <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0">
+                    <StackPanel.Resources>
+                        <Style TargetType="ToggleButton">
+                            <Setter Property="MinHeight" Value="92"/>
+                            <Setter Property="FontSize" Value="22"/>
+                            <Setter Property="Padding" Value="18,14"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                            <Setter Property="Background" Value="#22FFFFFF"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Bd"
+                                                CornerRadius="16"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}">
+                                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                              Content="{TemplateBinding Content}"
+                                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                              VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#44FFFFFF"/>
+                                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush2}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#99FFFFFF"/>
+                                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+
+                        <Style x:Key="ModeTitle" TargetType="TextBlock">
+                            <Setter Property="FontSize" Value="22"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                        </Style>
+
+                        <Style x:Key="ModeDesc" TargetType="TextBlock">
+                            <Setter Property="FontSize" Value="13"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+                            <Setter Property="Margin" Value="0,6,0,0"/>
+                        </Style>
+                    </StackPanel.Resources>
+
+                    <ToggleButton x:Name="MainChatToggle" Click="MainChat_Click">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource ModeTitle}" Text="1. chat"/>
+                            <TextBlock Style="{StaticResource ModeDesc}" Text="일반 대화 / 작업"/>
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <ToggleButton x:Name="SoloThinkToggle" Margin="0,14,0,0" Click="SoloThink_Click">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource ModeTitle}" Text="2. solo play"/>
+                            <TextBlock Style="{StaticResource ModeDesc}" Text="혼자 정리 / 아이디어"/>
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <ToggleButton x:Name="DuoDebateToggle" Margin="0,14,0,0" Click="DuoDebate_Click">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource ModeTitle}" Text="3. Dialogue"/>
+                            <TextBlock Style="{StaticResource ModeDesc}" Text="두 관점 비교 / 토론"/>
+                        </StackPanel>
+                    </ToggleButton>
+                </StackPanel>
+
+                <TextBlock Grid.Row="2" Margin="0,12,0,0" Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" FontSize="12">
+선택 후에는 상단 탭에서 방을 바꿀 수 있어.
+                </TextBlock>
+            </Grid>
+        </Border>
     </Grid>
 </Page>

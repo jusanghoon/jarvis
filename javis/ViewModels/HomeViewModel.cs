@@ -27,7 +27,6 @@ public partial class HomeViewModel : ObservableObject
 
         TodoBus.Changed += () =>
         {
-            // best-effort refresh; avoid blocking UI
             var _ignore = Refresh();
         };
 
@@ -35,8 +34,32 @@ public partial class HomeViewModel : ObservableObject
         var _ignore2 = Refresh();
     }
 
+    partial void OnSelectedDateChanged(DateTime value)
+    {
+        try
+        {
+            RefreshSelectedDateTodos();
+        }
+        catch { }
+    }
+
+    private void RefreshSelectedDateTodos()
+    {
+        var list = _store.GetByDate(SelectedDate)
+            .Where(x => !x.IsDone)
+            .OrderBy(x => x.Time ?? TimeSpan.MaxValue)
+            .ThenBy(x => x.Title)
+            .ToList();
+
+        SelectedDateTodos.Clear();
+        foreach (var it in list)
+            SelectedDateTodos.Add(it);
+    }
+
     [ObservableProperty]
     private DateTime _selectedDate;
+
+    public ObservableCollection<CalendarTodoItem> SelectedDateTodos { get; } = new();
 
     public ObservableCollection<CalendarTodoItem> UpcomingTop3 { get; } = new();
 
@@ -81,6 +104,8 @@ public partial class HomeViewModel : ObservableObject
             {
                 TodoDates.Add(d);
             }
+
+            RefreshSelectedDateTodos();
 
             var kernel = javis.App.Kernel;
             if (kernel?.Fossils is null) return;
