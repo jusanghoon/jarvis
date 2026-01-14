@@ -47,15 +47,32 @@ public sealed class ScaleToFitDecorator : Decorator
         set => SetValue(UseLayoutRoundingProperty, value);
     }
 
+    private static double GetGlobalUiScale()
+    {
+        try
+        {
+            var s = javis.Services.RuntimeSettings.Instance.UiScale;
+            if (double.IsNaN(s) || double.IsInfinity(s) || s <= 0) return 1;
+            return s;
+        }
+        catch
+        {
+            return 1;
+        }
+    }
+
     protected override Size MeasureOverride(Size constraint)
     {
         if (Child is null)
             return new Size(0, 0);
 
-        Child.Measure(new Size(DesignWidth, DesignHeight));
+        var uiScale = GetGlobalUiScale();
+        var dw = DesignWidth / uiScale;
+        var dh = DesignHeight / uiScale;
+        Child.Measure(new Size(dw, dh));
 
         var scale = GetScale(constraint);
-        return new Size(DesignWidth * scale.scaleX, DesignHeight * scale.scaleY);
+        return new Size(dw * scale.scaleX, dh * scale.scaleY);
     }
 
     protected override Size ArrangeOverride(Size arrangeSize)
@@ -63,9 +80,13 @@ public sealed class ScaleToFitDecorator : Decorator
         if (Child is null)
             return arrangeSize;
 
+        var uiScale = GetGlobalUiScale();
+        var dw = DesignWidth / uiScale;
+        var dh = DesignHeight / uiScale;
+
         var scale = GetScale(arrangeSize);
 
-        var childSize = new Size(DesignWidth, DesignHeight);
+        var childSize = new Size(dw, dh);
 
         var scaledW = childSize.Width * scale.scaleX;
         var scaledH = childSize.Height * scale.scaleY;
@@ -89,14 +110,18 @@ public sealed class ScaleToFitDecorator : Decorator
 
     private (double scaleX, double scaleY) GetScale(Size available)
     {
-        if (DesignWidth <= 0 || DesignHeight <= 0)
+        var uiScale = GetGlobalUiScale();
+        var dw = DesignWidth / uiScale;
+        var dh = DesignHeight / uiScale;
+
+        if (dw <= 0 || dh <= 0)
             return (1, 1);
 
         if (double.IsInfinity(available.Width) || double.IsInfinity(available.Height) || available.Width <= 0 || available.Height <= 0)
             return (1, 1);
 
-        var sx = available.Width / DesignWidth;
-        var sy = available.Height / DesignHeight;
+        var sx = available.Width / dw;
+        var sy = available.Height / dh;
 
         switch (Stretch)
         {
