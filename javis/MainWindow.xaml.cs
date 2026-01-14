@@ -22,6 +22,7 @@ namespace javis
         private readonly SettingsPage _settingsPage = new();
         private readonly UpdatesPage _updatesPage = new();
         private readonly MainAiWidgetViewModel _mainAiWidgetVm = new();
+        private readonly MapPage _mapPage = new();
 
         private bool _rightPanelEnabled = true;
 
@@ -194,6 +195,7 @@ namespace javis
                 "home" => new HomeCalendarPage(_homeVm),
                 "chat" => _chatPage,
                 "todos" => _todosPage,
+                "map" => _mapPage,
                 "skills" => _skillsPage,
                 "settings" => _settingsPage,
                 _ => new HomeCalendarPage(_homeVm)

@@ -131,6 +131,7 @@
                                     <ListBoxItem Tag="home" Content="Home" />
                                     <ListBoxItem Tag="chat" Content="Chat" />
                                     <ListBoxItem Tag="todos" Content="Todos" />
+                                    <ListBoxItem Tag="map" Content="Map" />
                                     <ListBoxItem Tag="skills" Content="Skills" />
                                     <ListBoxItem Tag="settings" Content="Settings" />
                                 </ListBox>

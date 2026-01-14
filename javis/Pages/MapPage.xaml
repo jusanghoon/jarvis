@@ -1,0 +1,72 @@
+﻿<Page x:Class="javis.Pages.MapPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border CornerRadius="14" Background="#66FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="12" Margin="0,0,0,12">
+            <DockPanel LastChildFill="True">
+                <TextBlock Text="지도" FontSize="18" FontWeight="SemiBold" Foreground="#1F2B36"/>
+                <TextBlock DockPanel.Dock="Right" Text="(일정의 지역명이 지도 핀으로 표시됩니다)" Foreground="#3A4A5A" VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="1" CornerRadius="18" Background="#B2FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="지역:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox Width="240" Text="{Binding LocationInput, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button Content="핀 추가" Margin="8,0,0,0" Padding="12,6" Command="{Binding AddPinCommand}"/>
+                </StackPanel>
+
+                <Border Grid.Row="1" CornerRadius="12" Background="#00FFFFFF" BorderBrush="#55B39DFF" BorderThickness="1" Padding="12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="260"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border CornerRadius="10" Background="#0A000000" BorderBrush="#22000000" BorderThickness="1" Margin="0,0,12,0">
+                            <Grid>
+                                <TextBlock Text="지도(placeholder)" Foreground="#556" FontWeight="SemiBold" Margin="10"/>
+                                <ItemsControl ItemsSource="{Binding Pins}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <Canvas/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Canvas.Left="{Binding X}" Canvas.Top="{Binding Y}" Background="#FF3A7BD5" CornerRadius="10" Padding="6,4">
+                                                <TextBlock Text="{Binding Name}" Foreground="White" FontSize="12"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="1" CornerRadius="10" Background="#66FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="10">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="핀 목록" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <ListBox ItemsSource="{Binding Pins}" DisplayMemberPath="Name"/>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>
