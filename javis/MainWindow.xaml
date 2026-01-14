@@ -11,67 +11,92 @@
         PreviewKeyDown="MainWindow_PreviewKeyDown"
         FontFamily="Segoe UI, Malgun Gothic, Segoe UI Emoji">
 
-    <ui:ScaleToFitDecorator DesignWidth="1200" DesignHeight="720">
-        <Grid Width="1200" Height="720">
-            <!-- Background (no image): soft gradient + ornaments -->
-            <Border Background="{StaticResource PastelBackgroundImageBrush}"/>
+    <Window.Resources>
+        <Style x:Key="JaeminPanelToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}"
+                                SnapsToDevicePixels="True"
+                                Width="{TemplateBinding Width}"
+                                Height="{TemplateBinding Height}">
+                            <Image Source="pack://application:,,,/Assets/Persona/jaemin_face.png"
+                                   Width="{TemplateBinding Width}" Height="{TemplateBinding Height}"
+                                   Stretch="UniformToFill"
+                                   SnapsToDevicePixels="True"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   RenderTransformOrigin="0.5,0.5">
+                                <Image.RenderTransform>
+                                    <ScaleTransform ScaleX="1.7" ScaleY="1.7"/>
+                                </Image.RenderTransform>
+                            </Image>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.95"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
 
-            <Canvas IsHitTestVisible="False">
-                <Ellipse Width="520" Height="520" Canvas.Left="-180" Canvas.Top="-160" Fill="{StaticResource PastelBlobBlue}"/>
-                <Ellipse Width="460" Height="460" Canvas.Left="80" Canvas.Top="520" Fill="{StaticResource PastelBlobPink}"/>
-                <Ellipse Width="520" Height="520" Canvas.Left="740" Canvas.Top="140" Fill="{StaticResource PastelBlobMint}"/>
-                <Ellipse Width="340" Height="340" Canvas.Left="980" Canvas.Top="-120" Fill="{StaticResource PastelBlobPink}" Opacity="0.65"/>
-            </Canvas>
+    <Grid>
+        <ui:ScaleToFitDecorator DesignWidth="1200" DesignHeight="720" AlignToTopLeft="True" Stretch="UniformToFill"
+                                UseLayoutRounding="True"
+                                SnapsToDevicePixels="True"
+                                TextOptions.TextFormattingMode="Display"
+                                TextOptions.TextRenderingMode="ClearType"
+                                RenderOptions.ClearTypeHint="Enabled">
+            <Grid Width="1200" Height="720">
+                <!-- Background (no image): soft gradient + ornaments -->
+                <Border Background="{StaticResource PastelBackgroundImageBrush}"/>
 
-            <DockPanel Margin="18">
-                <!-- Title bar -->
-                <Border DockPanel.Dock="Top" Height="64" Background="#00FFFFFF" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                    <DockPanel LastChildFill="True">
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,10">
-                            <Button Click="Min_Click" Style="{StaticResource TitleBarButton}">
-                                <TextBlock Text="_" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                            </Button>
-                            <Button Click="Max_Click" Margin="6,0,0,0" Style="{StaticResource TitleBarButton}">
-                                <TextBlock Text="[]" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                            </Button>
-                            <Button Click="Close_Click" Margin="6,0,0,0" Style="{StaticResource TitleBarButton}">
-                                <TextBlock Text="X" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                            </Button>
-                        </StackPanel>
-
-                        <TextBlock Margin="6,0,0,0"
-                                   VerticalAlignment="Center"
-                                   FontSize="16"
-                                   FontWeight="SemiBold"
-                                   Text="JARVIS"/>
-                    </DockPanel>
-                </Border>
+                <Canvas IsHitTestVisible="False">
+                    <Ellipse Width="520" Height="520" Canvas.Left="-180" Canvas.Top="-160" Fill="{StaticResource PastelBlobBlue}"/>
+                    <Ellipse Width="460" Height="460" Canvas.Left="80" Canvas.Top="520" Fill="{StaticResource PastelBlobPink}"/>
+                    <Ellipse Width="520" Height="520" Canvas.Left="740" Canvas.Top="140" Fill="{StaticResource PastelBlobMint}"/>
+                    <Ellipse Width="340" Height="340" Canvas.Left="980" Canvas.Top="-120" Fill="{StaticResource PastelBlobPink}" Opacity="0.65"/>
+                </Canvas>
 
                 <!-- Body -->
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="182"/>
-                        <ColumnDefinition Width="18"/>
+                        <ColumnDefinition x:Name="LeftNavCol" Width="210"/>
+                        <ColumnDefinition x:Name="LeftGapCol" Width="2"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="18"/>
-                        <ColumnDefinition Width="340"/>
+                        <ColumnDefinition x:Name="RightRailCol" Width="18"/>
+                        <ColumnDefinition x:Name="RightPanelCol" Width="300"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- Left nav -->
-                    <Border Grid.Column="0" Background="#00FFFFFF" Padding="6,8">
-                        <Border CornerRadius="18" Background="#5AFFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="10,12">
+                    <Border x:Name="LeftNavHost" Grid.Column="0" Background="#00FFFFFF" Padding="0">
+                        <Border CornerRadius="18" Background="#5AFFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="0">
                             <StackPanel>
-                                <TextBlock Text="JARVIS" FontWeight="Bold" FontSize="16" Margin="8,0,0,12" />
+                                <TextBlock Text="JARVIS" FontWeight="Bold" FontSize="18" Margin="10,8,0,10" />
 
                                 <ListBox x:Name="Nav"
                                          Background="Transparent"
                                          BorderThickness="0"
-                                         FontSize="14"
+                                         FontSize="16"
                                          SelectionChanged="Nav_SelectionChanged">
                                     <ListBox.ItemContainerStyle>
                                         <Style TargetType="ListBoxItem">
-                                            <Setter Property="Padding" Value="12,8"/>
-                                            <Setter Property="MinHeight" Value="38"/>
+                                            <Setter Property="Padding" Value="10,8"/>
+                                            <Setter Property="MinHeight" Value="40"/>
                                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                             <Setter Property="Template">
                                                 <Setter.Value>
@@ -130,65 +155,8 @@
                         </Border>
                     </Grid>
 
-                    <!-- Right panel toggle rail (always visible) -->
-                    <Grid Grid.Column="3" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
-                        <Grid.Resources>
-                            <Style TargetType="ToggleButton" x:Key="RightPanelRailToggleStyle">
-                                <Setter Property="Width" Value="18"/>
-                                <Setter Property="Height" Value="64"/>
-                                <Setter Property="Background" Value="#66FFFFFF"/>
-                                <Setter Property="BorderBrush" Value="#33FFFFFF"/>
-                                <Setter Property="BorderThickness" Value="1"/>
-                                <Setter Property="Padding" Value="0"/>
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="ToggleButton">
-                                            <Border x:Name="Bd"
-                                                    CornerRadius="9"
-                                                    Background="{TemplateBinding Background}"
-                                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                                    BorderThickness="{TemplateBinding BorderThickness}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="Bd" Property="Background" Value="#88FFFFFF"/>
-                                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#55B39DFF"/>
-                                                </Trigger>
-                                                <Trigger Property="IsPressed" Value="True">
-                                                    <Setter TargetName="Bd" Property="Opacity" Value="0.88"/>
-                                                </Trigger>
-                                                <Trigger Property="IsChecked" Value="True">
-                                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#55B39DFF"/>
-                                                </Trigger>
-                                                <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Grid.Resources>
-
-                        <ToggleButton x:Name="RightPanelToggle"
-                                      HorizontalAlignment="Center"
-                                      VerticalAlignment="Top"
-                                      Margin="0,22,0,0"
-                                      IsChecked="True"
-                                      Checked="RightPanelToggle_Checked"
-                                      Unchecked="RightPanelToggle_Unchecked"
-                                      ToolTip="재민 패널 토글"
-                                      Style="{StaticResource RightPanelRailToggleStyle}">
-                            <TextBlock x:Name="RightPanelToggleGlyph"
-                                       Text="❮"
-                                       FontSize="12"
-                                       FontWeight="SemiBold"
-                                       Foreground="#55606C"
-                                       VerticalAlignment="Center"
-                                       HorizontalAlignment="Center"/>
-                        </ToggleButton>
-                    </Grid>
+                    <!-- Right panel toggle rail: only used when panel is collapsed (floating button is outside ScaleToFit) -->
+                    <Grid Grid.Column="3" Width="0" />
 
                     <!-- Right (blue) panel -->
                     <Border x:Name="RightPanelHost" Grid.Column="4" Style="{StaticResource LargePanelBlue}">
@@ -200,15 +168,38 @@
 
                             <Border Grid.Row="0"
                                     CornerRadius="18"
-                                    Background="#66FFFFFF"
-                                    BorderBrush="#33FFFFFF"
+                                    Background="#B2FFFFFF"
+                                    BorderBrush="#55B39DFF"
                                     BorderThickness="1"
-                                    Padding="12,8"
+                                    Padding="6,4"
+                                    MinHeight="48"
                                     Margin="0,0,0,12">
-                                <TextBlock Text="재민 - AI 관리자"
-                                           FontSize="14"
-                                           FontWeight="SemiBold"
-                                           Margin="4,0,0,0"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <ToggleButton x:Name="RightPanelToggle"
+                                                  Grid.Column="0"
+                                                  Margin="0,0,8,0"
+                                                  Width="40"
+                                                  Height="40"
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="True"
+                                                  Checked="RightPanelToggle_Checked"
+                                                  Unchecked="RightPanelToggle_Unchecked"
+                                                  ToolTip="재민 패널 토글"
+                                                  Style="{StaticResource JaeminPanelToggleStyle}" />
+
+                                    <TextBlock Grid.Column="1"
+                                               Text="재민 - AI 관리자"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="#1F2B36"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center"/>
+                                </Grid>
                             </Border>
 
                             <ui:MainAiWidget Grid.Row="1"
@@ -219,7 +210,43 @@
                         </Grid>
                     </Border>
                 </Grid>
+            </Grid>
+        </ui:ScaleToFitDecorator>
+
+        <!-- Title bar overlay (not scaled): stays at actual window top-right -->
+        <Border x:Name="TitleBarHost"
+                Height="40"
+                Background="#00FFFFFF"
+                VerticalAlignment="Top"
+                HorizontalAlignment="Stretch"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <DockPanel LastChildFill="True" Margin="0">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,6,4">
+                    <Button Click="Min_Click" Style="{StaticResource TitleBarButton}">
+                        <TextBlock Text="_" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Button>
+                    <Button Click="Max_Click" Margin="6,0,0,0" Style="{StaticResource TitleBarButton}">
+                        <TextBlock Text="[]" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Button>
+                    <Button Click="Close_Click" Margin="6,0,0,0" Style="{StaticResource TitleBarButton}">
+                        <TextBlock Text="X" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Button>
+                </StackPanel>
+
+                <TextBlock Visibility="Collapsed" />
             </DockPanel>
-        </Grid>
-    </ui:ScaleToFitDecorator>
+        </Border>
+
+        <!-- Floating Jaemin panel toggle (visible only when panel is collapsed) -->
+        <ToggleButton x:Name="RightPanelFloatingToggle"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Top"
+                      Margin="0,52,20,0"
+                      Width="40"
+                      Height="40"
+                      ToolTip="재민 패널 열기"
+                      Visibility="Collapsed"
+                      Checked="RightPanelToggle_Checked"
+                      Style="{StaticResource JaeminPanelToggleStyle}" />
+    </Grid>
 </Window>

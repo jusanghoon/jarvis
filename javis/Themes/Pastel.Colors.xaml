@@ -3,8 +3,8 @@
 
     <!-- Pastel palette (soft, cute) -->
     <Color x:Key="PastelBg">#FFF7FBFF</Color>
-    <Color x:Key="PastelText">#FF2B2B2B</Color>
-    <Color x:Key="PastelMuted">#FF5E6A76</Color>
+    <Color x:Key="PastelText">#FF0F172A</Color>
+    <Color x:Key="PastelMuted">#FF334155</Color>
 
     <Color x:Key="PastelCardBg">#CCFFFFFF</Color>
     <Color x:Key="PastelCardBorder">#33B39DFF</Color>
@@ -39,14 +39,14 @@
                 Opacity="1"/>
 
     <!-- Panel tints (like the reference image) -->
-    <SolidColorBrush x:Key="PanelPinkBg" Color="#EFFFF2F7"/>
-    <SolidColorBrush x:Key="PanelPinkBorder" Color="#66FF9BC1"/>
+    <SolidColorBrush x:Key="PanelPinkBg" Color="#FFF6DDE8"/>
+    <SolidColorBrush x:Key="PanelPinkBorder" Color="#B3FF7FB4"/>
 
-    <SolidColorBrush x:Key="PanelMintBg" Color="#EFFFFAF0"/>
-    <SolidColorBrush x:Key="PanelMintBorder" Color="#6697E39F"/>
+    <SolidColorBrush x:Key="PanelMintBg" Color="#FFF2F6E6"/>
+    <SolidColorBrush x:Key="PanelMintBorder" Color="#B391E3A2"/>
 
-    <SolidColorBrush x:Key="PanelBlueBg" Color="#EEECF6FF"/>
-    <SolidColorBrush x:Key="PanelBlueBorder" Color="#6687C7FF"/>
+    <SolidColorBrush x:Key="PanelBlueBg" Color="#FFE1EEFF"/>
+    <SolidColorBrush x:Key="PanelBlueBorder" Color="#B36FB5FF"/>
 
     <!-- Chat bubble colors -->
     <SolidColorBrush x:Key="ChatBubbleBaseBg" Color="#F7FFFFFF"/>

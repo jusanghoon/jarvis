@@ -18,5 +18,8 @@ public sealed partial class RuntimeSettings : ObservableObject
     private bool _homeRightPanelEnabled = true;
 
     [ObservableProperty]
-    private double _uiScale = 0.9;
+    private double _uiScale = 1.2;
+
+    [ObservableProperty]
+    private bool _settingsShowResolution = true;
 }

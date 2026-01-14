@@ -58,6 +58,7 @@ namespace javis
             Title = $"{aiName} [{RuntimeSettings.Instance.Model}]";
         }
 
+
         public MainWindow()
         {
             InitializeComponent();
@@ -69,10 +70,10 @@ namespace javis
                 if (FindName("RightPanelToggle") is ToggleButton tb)
                     tb.IsChecked = _rightPanelEnabled;
 
-                if (FindName("RightPanelToggleGlyph") is TextBlock g)
-                    g.Text = _rightPanelEnabled ? "❮" : "❯";
+                if (FindName("RightPanelFloatingToggle") is ToggleButton ft)
+                    ft.IsChecked = _rightPanelEnabled;
 
-                ApplyRightPanelState(_rightPanelEnabled);
+                ApplyRightPanelState(show: _rightPanelEnabled);
             }
             catch { }
 
@@ -237,9 +238,8 @@ namespace javis
             {
                 try
                 {
-                    // Host exists only on Home layout visually. If not home, always hide host.
-                    // Column width is still controlled by the toggle (so we can reserve space later if desired).
-                    var effective = show && _rightPanelEnabled;
+                    // Show right panel on all pages; still respect the user toggle.
+                    var effective = _rightPanelEnabled;
                     if (FindName("RightPanelHost") is FrameworkElement fe)
                         fe.Visibility = effective ? Visibility.Visible : Visibility.Collapsed;
                 }
@@ -343,8 +343,8 @@ namespace javis
                 RuntimeSettings.Instance.HomeRightPanelEnabled = true;
                 try { RuntimeSettingsStore.SaveFrom(RuntimeSettings.Instance); } catch { }
 
-                if (FindName("RightPanelToggleGlyph") is TextBlock t)
-                    t.Text = "❮"; // collapse arrow
+                if (FindName("RightPanelToggle") is ToggleButton tb) tb.IsChecked = true;
+                if (FindName("RightPanelFloatingToggle") is ToggleButton ft) ft.IsChecked = true;
 
                 ApplyRightPanelState(show: true);
             }
@@ -359,8 +359,8 @@ namespace javis
                 RuntimeSettings.Instance.HomeRightPanelEnabled = false;
                 try { RuntimeSettingsStore.SaveFrom(RuntimeSettings.Instance); } catch { }
 
-                if (FindName("RightPanelToggleGlyph") is TextBlock t)
-                    t.Text = "❯"; // expand arrow
+                if (FindName("RightPanelToggle") is ToggleButton tb) tb.IsChecked = false;
+                if (FindName("RightPanelFloatingToggle") is ToggleButton ft) ft.IsChecked = false;
 
                 ApplyRightPanelState(show: false);
             }
@@ -374,23 +374,17 @@ namespace javis
                 if (FindName("RightPanelHost") is FrameworkElement fe)
                     fe.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
 
-                if (MainFrame?.Parent is not Border mainBorder) return;
-                if (mainBorder.Parent is not Grid centerGrid) return;
-                if (centerGrid.Parent is not Grid bodyGrid) return;
-                if (bodyGrid.ColumnDefinitions.Count < 5) return;
+                if (FindName("RightRailCol") is ColumnDefinition railCol)
+                    railCol.Width = new GridLength(0);
 
-                if (show)
-                {
-                    // keep a small gap rail for the toggle
-                    bodyGrid.ColumnDefinitions[3].Width = new GridLength(18);
-                    bodyGrid.ColumnDefinitions[4].Width = new GridLength(340);
-                }
-                else
-                {
-                    // keep column 3 so the toggle rail stays visible
-                    bodyGrid.ColumnDefinitions[3].Width = new GridLength(18);
-                    bodyGrid.ColumnDefinitions[4].Width = new GridLength(0);
-                }
+                if (FindName("RightPanelCol") is ColumnDefinition rightCol)
+                    rightCol.Width = show ? new GridLength(300) : new GridLength(0);
+
+                if (FindName("RightPanelToggle") is FrameworkElement headerToggle)
+                    headerToggle.Visibility = Visibility.Visible;
+
+                if (FindName("RightPanelFloatingToggle") is FrameworkElement floatingToggle)
+                    floatingToggle.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
             }
             catch { }
         }

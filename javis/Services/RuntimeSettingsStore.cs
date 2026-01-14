@@ -25,6 +25,7 @@ public static class RuntimeSettingsStore
         public string? MainAiName { get; set; }
         public bool? HomeRightPanelEnabled { get; set; }
         public double? UiScale { get; set; }
+        public bool? SettingsShowResolution { get; set; }
     }
 
     public static void LoadInto(RuntimeSettings settings)
@@ -50,6 +51,9 @@ public static class RuntimeSettingsStore
 
             if (dto.UiScale is double s && !double.IsNaN(s) && !double.IsInfinity(s) && s > 0)
                 settings.UiScale = s;
+
+            if (dto.SettingsShowResolution is bool sr)
+                settings.SettingsShowResolution = sr;
         }
         catch
         {
@@ -70,7 +74,8 @@ public static class RuntimeSettingsStore
                 Model = settings.Model,
                 MainAiName = settings.MainAiName,
                 HomeRightPanelEnabled = settings.HomeRightPanelEnabled,
-                UiScale = settings.UiScale
+                UiScale = settings.UiScale,
+                SettingsShowResolution = settings.SettingsShowResolution
             };
 
             var json = JsonSerializer.Serialize(dto, JsonOpts);

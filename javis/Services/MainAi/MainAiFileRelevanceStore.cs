@@ -15,11 +15,12 @@ public sealed class MainAiFileRelevanceStore
 
     public MainAiFileRelevanceStore(string solutionRoot)
     {
-        if (string.IsNullOrWhiteSpace(solutionRoot))
-            solutionRoot = AppDomain.CurrentDomain.BaseDirectory;
-
-        var root = Path.GetFullPath(solutionRoot);
-        _filePath = Path.Combine(root, "javis", "AppData", "mainai_file_relevance.json");
+        // Use per-user writable storage so it works even when app is run from Desktop/Program Files.
+        // Keep the same base directory as RuntimeSettingsStore.
+        _filePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Jarvis",
+            "mainai_file_relevance.json");
         Load();
     }
 
@@ -69,9 +70,9 @@ public sealed class MainAiFileRelevanceStore
 
     private void Load()
     {
-        try
+        lock (_gate)
         {
-            lock (_gate)
+            try
             {
                 if (!File.Exists(_filePath))
                 {
@@ -79,18 +80,57 @@ public sealed class MainAiFileRelevanceStore
                     return;
                 }
 
-                var json = File.ReadAllText(_filePath);
-                var data = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, int>>>(json, new JsonSerializerOptions
+                if (TryLoadFrom(_filePath, out var data))
                 {
-                    PropertyNameCaseInsensitive = true
-                });
+                    _tagFileScores = data;
+                    return;
+                }
 
-                _tagFileScores = data ?? new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+                // recovery: try .bak
+                var bak = _filePath + ".bak";
+                if (File.Exists(bak) && TryLoadFrom(bak, out var data2))
+                {
+                    _tagFileScores = data2;
+                    try { File.Copy(bak, _filePath, overwrite: true); } catch { }
+                    return;
+                }
+
+                // last resort: preserve broken file
+                try
+                {
+                    var corrupt = _filePath + ".corrupt." + DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmss");
+                    File.Move(_filePath, corrupt, overwrite: true);
+                }
+                catch { }
+
+                _tagFileScores = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
             }
+            catch
+            {
+                _tagFileScores = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    private static bool TryLoadFrom(string path, out Dictionary<string, Dictionary<string, int>> data)
+    {
+        data = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var json = File.ReadAllText(path);
+            var parsed = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, int>>>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (parsed is null) return false;
+            data = new Dictionary<string, Dictionary<string, int>>(parsed, StringComparer.OrdinalIgnoreCase);
+            return true;
         }
         catch
         {
-            _tagFileScores = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+            return false;
         }
     }
 
@@ -107,7 +147,34 @@ public sealed class MainAiFileRelevanceStore
                 WriteIndented = true
             });
 
-            File.WriteAllText(_filePath, json);
+            // Stronger atomic save: write temp then replace.
+            // If Replace isn't available/supported, fall back to copy.
+            var tmp = _filePath + ".tmp";
+            var bak = _filePath + ".bak";
+
+            File.WriteAllText(tmp, json);
+
+            try
+            {
+                if (File.Exists(_filePath))
+                {
+                    File.Replace(tmp, _filePath, bak, ignoreMetadataErrors: true);
+                    try { File.Delete(bak); } catch { }
+                }
+                else
+                {
+                    File.Move(tmp, _filePath);
+                }
+            }
+            catch
+            {
+                // fallback
+                File.Copy(tmp, _filePath, overwrite: true);
+            }
+            finally
+            {
+                try { File.Delete(tmp); } catch { }
+            }
         }
         catch
         {

@@ -4,18 +4,18 @@
       xmlns:services="clr-namespace:javis.Services"
       Background="Transparent">
 
-    <Grid Margin="14">
-        <Border Style="{StaticResource CardBorderStyle}" Padding="16">
+    <Grid Margin="0">
+        <Border Style="{StaticResource CardBorderStyle}" Padding="6">
             <StackPanel>
                 <TextBlock Text="Settings" FontSize="18" FontWeight="SemiBold"/>
 
                 <!-- User -->
-                <Border Margin="0,14,0,0"
+                <Border Margin="0,8,0,0"
                         CornerRadius="14"
                         Background="#F7FFFFFF"
                         BorderBrush="{StaticResource CardBorder}"
                         BorderThickness="1"
-                        Padding="14">
+                        Padding="8">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="160"/>
@@ -39,29 +39,29 @@
                         <Button Grid.Row="0" Grid.Column="2"
                                 Content="선택"
                                 Click="UserSelect_Click"
-                                Margin="10,0,0,0"
-                                Padding="12,6"/>
+                                Margin="8,0,0,0"
+                                Padding="10,5"/>
 
                         <TextBlock Grid.Row="1" Grid.Column="0"
-                                   Margin="0,10,0,0"
+                                   Margin="0,6,0,0"
                                    Text="Note"
                                    Foreground="{StaticResource TextMuted}"
                                    VerticalAlignment="Center"/>
 
                         <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
-                                   Margin="0,10,0,0"
+                                   Margin="0,6,0,0"
                                    Text="유저별로 Jarvis 설정/기록을 분리할 수 있습니다."
                                    Foreground="{StaticResource TextMuted}"/>
                     </Grid>
                 </Border>
 
                 <!-- Model -->
-                <Border Margin="0,14,0,0"
+                <Border Margin="0,8,0,0"
                         CornerRadius="14"
                         Background="#F7FFFFFF"
                         BorderBrush="{StaticResource CardBorder}"
                         BorderThickness="1"
-                        Padding="14">
+                        Padding="8">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="160"/>
@@ -78,7 +78,7 @@
                                    VerticalAlignment="Center"/>
 
                         <ComboBox Grid.Row="0" Grid.Column="1"
-                                  Height="36"
+                                  Height="32"
                                   Background="#F2FFFFFF"
                                   Foreground="{StaticResource TextPrimary}"
                                   BorderBrush="{StaticResource CardBorder}"
@@ -89,25 +89,25 @@
                         </ComboBox>
 
                         <TextBlock Grid.Row="1" Grid.Column="0"
-                                   Margin="0,10,0,0"
+                                   Margin="0,6,0,0"
                                    Text="Hotkeys"
                                    Foreground="{StaticResource TextMuted}"
                                    VerticalAlignment="Center"/>
 
                         <TextBlock Grid.Row="1" Grid.Column="1"
-                                   Margin="0,10,0,0"
+                                   Margin="0,6,0,0"
                                    Text="Ctrl+1 = qwen3:4b / Ctrl+2 = qwen3:8b"
                                    Foreground="{StaticResource TextMuted}"/>
                     </Grid>
                 </Border>
 
                 <!-- Updates -->
-                <Border Margin="0,14,0,0"
+                <Border Margin="0,8,0,0"
                         CornerRadius="14"
                         Background="#F7FFFFFF"
                         BorderBrush="{StaticResource CardBorder}"
                         BorderThickness="1"
-                        Padding="14">
+                        Padding="8">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="160"/>
@@ -128,10 +128,46 @@
                         <Button Grid.Column="2"
                                 Content="열기"
                                 Click="Updates_Click"
-                                Margin="10,0,0,0"
-                                Padding="12,6"/>
+                                Margin="8,0,0,0"
+                                Padding="10,5"/>
                     </Grid>
                 </Border>
+
+                <!-- Display -->
+                <Border Margin="0,8,0,0"
+                        CornerRadius="14"
+                        Background="#F7FFFFFF"
+                        BorderBrush="{StaticResource CardBorder}"
+                        BorderThickness="1"
+                        Padding="8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="160"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="Display"
+                                   Foreground="{StaticResource TextMuted}"
+                                   VerticalAlignment="Center"/>
+
+                        <CheckBox Grid.Row="0" Grid.Column="1"
+                                  Content="해상도 표시"
+                                  IsChecked="{Binding SettingsShowResolution, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,6,0,0"
+                                    Visibility="{Binding IsResolutionVisible}">
+                            <TextBlock Text="{Binding ResolutionSummary}"
+                                       Foreground="{StaticResource TextMuted}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
             </StackPanel>
         </Border>
     </Grid>

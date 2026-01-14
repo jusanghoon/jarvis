@@ -180,17 +180,17 @@
 
                 <StackPanel x:Name="BigModeButtonsPanel" Grid.Row="0" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                     <ToggleButton x:Name="SoloToggle"
-                                  Content="SOLO"
-                                  Width="110"
+                                  Width="64"
+                                  Height="34"
                                   Margin="0,0,8,0"
-                                  Style="{StaticResource ChatModeToggleStyle}"
+                                  Style="{StaticResource PastelToggleSwitchStyle}"
                                   Checked="SoloToggle_Checked"
                                   Unchecked="SoloToggle_Unchecked"/>
 
                     <ToggleButton x:Name="DuoToggle"
-                                  Content="DUO"
-                                  Width="90"
-                                  Style="{StaticResource ChatModeToggleStyle}"
+                                  Width="64"
+                                  Height="34"
+                                  Style="{StaticResource PastelToggleSwitchStyle}"
                                   Checked="DuoToggle_Checked"
                                   Unchecked="DuoToggle_Unchecked"/>
                 </StackPanel>

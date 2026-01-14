@@ -7,6 +7,10 @@ namespace javis.UI.Controls;
 
 public sealed class ScaleToFitDecorator : Decorator
 {
+    public static readonly DependencyProperty AlignToTopLeftProperty =
+        DependencyProperty.Register(nameof(AlignToTopLeft), typeof(bool), typeof(ScaleToFitDecorator),
+            new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsArrange));
+
     public static readonly DependencyProperty DesignWidthProperty =
         DependencyProperty.Register(nameof(DesignWidth), typeof(double), typeof(ScaleToFitDecorator),
             new FrameworkPropertyMetadata(1200d, FrameworkPropertyMetadataOptions.AffectsArrange | FrameworkPropertyMetadataOptions.AffectsMeasure));
@@ -45,6 +49,12 @@ public sealed class ScaleToFitDecorator : Decorator
     {
         get => (bool)GetValue(UseLayoutRoundingProperty);
         set => SetValue(UseLayoutRoundingProperty, value);
+    }
+
+    public bool AlignToTopLeft
+    {
+        get => (bool)GetValue(AlignToTopLeftProperty);
+        set => SetValue(AlignToTopLeftProperty, value);
     }
 
     private static double GetGlobalUiScale()
@@ -91,8 +101,8 @@ public sealed class ScaleToFitDecorator : Decorator
         var scaledW = childSize.Width * scale.scaleX;
         var scaledH = childSize.Height * scale.scaleY;
 
-        var offsetX = (arrangeSize.Width - scaledW) / 2.0;
-        var offsetY = (arrangeSize.Height - scaledH) / 2.0;
+        var offsetX = AlignToTopLeft ? 0 : (arrangeSize.Width - scaledW) / 2.0;
+        var offsetY = AlignToTopLeft ? 0 : (arrangeSize.Height - scaledH) / 2.0;
 
         if (UseLayoutRounding)
         {

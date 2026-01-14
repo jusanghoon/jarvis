@@ -71,10 +71,10 @@
         </Style>
     </Page.Resources>
 
-    <Grid Margin="14">
+    <Grid Margin="8">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="360"/>
-            <ColumnDefinition Width="16"/>
+            <ColumnDefinition Width="10"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
@@ -83,7 +83,7 @@
                 Background="#CCFFFFFF"
                 BorderBrush="#33FFFFFF"
                 BorderThickness="1"
-                Padding="14">
+                Padding="10">
             <StackPanel>
                 <TextBlock Text="캘린더" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
                 <Calendar SelectedDate="{Binding SelectedDate}"
@@ -99,7 +99,7 @@
                 Background="#CCFFFFFF"
                 BorderBrush="#33FFFFFF"
                 BorderThickness="1"
-                Padding="14">
+                Padding="10">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
