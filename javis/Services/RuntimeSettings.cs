@@ -22,4 +22,7 @@ public sealed partial class RuntimeSettings : ObservableObject
 
     [ObservableProperty]
     private bool _settingsShowResolution = true;
+
+    [ObservableProperty]
+    private bool _localDeviceDiagnosticsEnabled = true;
 }

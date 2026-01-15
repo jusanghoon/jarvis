@@ -148,6 +148,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Grid.Column="0"
@@ -164,6 +165,60 @@
                             <TextBlock Text="{Binding ResolutionSummary}"
                                        Foreground="{StaticResource TextMuted}"
                                        TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox Grid.Row="2" Grid.Column="1" Margin="0,10,0,0"
+                                  Content="로컬 장치 진단/자동 적응 사용"
+                                  IsChecked="{Binding LocalDeviceDiagnosticsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                </Border>
+
+                <!-- Device -->
+                <Border Margin="0,8,0,0"
+                        CornerRadius="14"
+                        Background="#F7FFFFFF"
+                        BorderBrush="{StaticResource CardBorder}"
+                        BorderThickness="1"
+                        Padding="8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="160"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                   Text="Device"
+                                   Foreground="{StaticResource TextMuted}"
+                                   VerticalAlignment="Center"/>
+
+                        <TextBlock Grid.Row="0" Grid.Column="1"
+                                   Text="{Binding DeviceId}"
+                                   Foreground="{StaticResource TextMuted}"
+                                   VerticalAlignment="Center"/>
+
+                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,10,0,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="UI Scale(기기별)" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center"/>
+                                <TextBox Width="70" Margin="10,0,0,0"
+                                         Text="{Binding UiScaleOverrideValueText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <Button Margin="6,0,0,0" Padding="10,5"
+                                        Content="현재값"
+                                        Command="{Binding SetUiScaleOverrideToCurrentCommand}"/>
+                                <Button Margin="10,0,0,0" Padding="10,5"
+                                        Content="저장"
+                                        Command="{Binding SaveUiScaleOverrideCommand}"/>
+                                <Button Margin="6,0,0,0" Padding="10,5"
+                                        Content="해제"
+                                        Command="{Binding ClearUiScaleOverrideCommand}"/>
+                            </StackPanel>
+
+                            <TextBlock Margin="0,6,0,0"
+                                       Foreground="{StaticResource TextMuted}"
+                                       Text="이 값은 현재 프로필/현재 기기(DeviceId)에만 저장됩니다."/>
                         </StackPanel>
                     </Grid>
                 </Border>

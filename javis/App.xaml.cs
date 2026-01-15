@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Windows.Input;
 using javis.Services;
 using javis.Services.Inbox;
+using javis.Services.Device;
 
 namespace javis
 {
@@ -49,6 +50,31 @@ namespace javis
 
             Kernel = new JarvisKernel();
             Kernel.Initialize();
+
+            // Device diagnostics + adaptive defaults (best-effort)
+            try
+            {
+                if (RuntimeSettings.Instance.LocalDeviceDiagnosticsEnabled)
+                {
+                    var dataDir = UserProfileService.Instance.ActiveUserDataDir;
+                    var snap = DeviceDiagnosticsCollector.CaptureBestEffort();
+
+                    try
+                    {
+                        var ovStore = new DeviceSettingsOverrideStore(dataDir);
+                        var ov = ovStore.Load(snap.Fingerprint.DeviceId);
+                        if (ov.UiScaleOverride is double uis && DeviceSettingsOverride.IsValidUiScale(uis))
+                            RuntimeSettings.Instance.UiScale = uis;
+                    }
+                    catch { }
+
+                    var store = new DeviceDiagnosticsStore(dataDir);
+                    store.SaveLatest(snap);
+                    DeviceAdaptiveSettings.ApplyAdaptiveDefaultsBestEffort(RuntimeSettings.Instance, snap);
+                    javis.Services.MainAi.MainAiDocBus.PublishSuggestion(DeviceDiagnosticsCollector.ToHumanSummary(snap), source: "device_diagnostics");
+                }
+            }
+            catch { }
 
             try
             {
