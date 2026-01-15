@@ -5,12 +5,13 @@ using System.Linq;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using javis.Services;
 
 namespace javis.ViewModels;
 
 public partial class MapViewModel : ObservableObject
 {
-    private readonly string _pinsPath;
+    private readonly MapPinsStore _store;
 
     public ObservableCollection<MapPin> Pins { get; } = new();
 
@@ -21,10 +22,7 @@ public partial class MapViewModel : ObservableObject
 
     public MapViewModel()
     {
-        var dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Jarvis");
-        var mapsDir = Path.Combine(dataDir, "maps");
-        Directory.CreateDirectory(mapsDir);
-        _pinsPath = Path.Combine(mapsDir, "pins.json");
+        _store = new MapPinsStore();
 
         AddPinCommand = new RelayCommand(AddPin);
 
@@ -56,15 +54,8 @@ public partial class MapViewModel : ObservableObject
     {
         try
         {
-            if (!File.Exists(_pinsPath))
-                return;
-
-            var json = File.ReadAllText(_pinsPath);
-            var pins = JsonSerializer.Deserialize<MapPin[]>(json);
-            if (pins is null) return;
-
             Pins.Clear();
-            foreach (var p in pins)
+            foreach (var p in _store.Load())
                 Pins.Add(p);
         }
         catch
@@ -77,14 +68,15 @@ public partial class MapViewModel : ObservableObject
     {
         try
         {
-            var json = JsonSerializer.Serialize(Pins.ToArray(), new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_pinsPath, json);
+            _store.Save(Pins);
         }
         catch
         {
             // best-effort
         }
     }
+
+    public void Reload() => LoadPins();
 }
 
 public sealed class MapPin

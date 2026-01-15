@@ -21,6 +21,9 @@ public sealed partial class RuntimeSettings : ObservableObject
     private double _uiScale = 1.2;
 
     [ObservableProperty]
+    private bool _disableScaleToFit;
+
+    [ObservableProperty]
     private bool _settingsShowResolution = true;
 
     [ObservableProperty]

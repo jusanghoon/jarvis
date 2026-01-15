@@ -322,6 +322,12 @@ namespace javis
                 UpdateWindowTitle();
                 e.Handled = true;
             }
+            else if (e.Key == Key.D0 || e.Key == Key.NumPad0)
+            {
+                RuntimeSettings.Instance.DisableScaleToFit = !RuntimeSettings.Instance.DisableScaleToFit;
+                try { RuntimeSettingsStore.SaveFrom(RuntimeSettings.Instance); } catch { }
+                e.Handled = true;
+            }
         }
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

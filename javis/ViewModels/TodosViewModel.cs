@@ -48,6 +48,7 @@ public partial class TodosViewModel : ObservableObject
 
     [ObservableProperty] private string _newTitle = "";
     [ObservableProperty] private string _newTime = "";
+    [ObservableProperty] private string _newLocation = "";
     [ObservableProperty] private string _status = "READY";
 
     [RelayCommand]
@@ -87,7 +88,7 @@ public partial class TodosViewModel : ObservableObject
         {
             Date = SelectedDate.Date,
             Time = time,
-            Title = title,
+            Title = string.IsNullOrWhiteSpace(NewLocation) ? title : $"{title} @{NewLocation.Trim()}",
             IsDone = false
         };
 
@@ -109,6 +110,7 @@ public partial class TodosViewModel : ObservableObject
         try { javis.Services.TodoBus.PublishChanged(); } catch { }
         NewTitle = "";
         NewTime = "";
+        NewLocation = "";
         Refresh();
         Status = "추가가 완료되었습니다.";
     }

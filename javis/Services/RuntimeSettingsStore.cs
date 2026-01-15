@@ -25,6 +25,7 @@ public static class RuntimeSettingsStore
         public string? MainAiName { get; set; }
         public bool? HomeRightPanelEnabled { get; set; }
         public double? UiScale { get; set; }
+        public bool? DisableScaleToFit { get; set; }
         public bool? SettingsShowResolution { get; set; }
         public bool? LocalDeviceDiagnosticsEnabled { get; set; }
     }
@@ -53,6 +54,9 @@ public static class RuntimeSettingsStore
             if (dto.UiScale is double s && !double.IsNaN(s) && !double.IsInfinity(s) && s > 0)
                 settings.UiScale = s;
 
+            if (dto.DisableScaleToFit is bool ds)
+                settings.DisableScaleToFit = ds;
+
             if (dto.SettingsShowResolution is bool sr)
                 settings.SettingsShowResolution = sr;
 
@@ -79,6 +83,7 @@ public static class RuntimeSettingsStore
                 MainAiName = settings.MainAiName,
                 HomeRightPanelEnabled = settings.HomeRightPanelEnabled,
                 UiScale = settings.UiScale,
+                DisableScaleToFit = settings.DisableScaleToFit,
                 SettingsShowResolution = settings.SettingsShowResolution,
                 LocalDeviceDiagnosticsEnabled = settings.LocalDeviceDiagnosticsEnabled
             };

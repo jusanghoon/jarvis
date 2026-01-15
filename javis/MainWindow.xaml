@@ -4,242 +4,241 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="clr-namespace:javis.UI.Controls"
         Title="JARVIS"
-        Width="1200" Height="720"
+        Width="1440" Height="720"
+        MinWidth="1200" MinHeight="720"
         WindowStyle="None"
         ResizeMode="CanResize"
         Background="{StaticResource AppBackgroundBrush}"
         PreviewKeyDown="MainWindow_PreviewKeyDown"
         FontFamily="Segoe UI, Malgun Gothic, Segoe UI Emoji">
 
-    <Window.Resources>
-        <Style x:Key="JaeminPanelToggleStyle" TargetType="ToggleButton">
-            <Setter Property="Width" Value="40"/>
-            <Setter Property="Height" Value="40"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Border Background="{TemplateBinding Background}"
+	<Window.Resources>
+		<Style x:Key="JaeminPanelToggleStyle" TargetType="ToggleButton">
+			<Setter Property="Width" Value="40"/>
+			<Setter Property="Height" Value="40"/>
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="ToggleButton">
+						<Border Background="{TemplateBinding Background}"
                                 SnapsToDevicePixels="True"
                                 Width="{TemplateBinding Width}"
                                 Height="{TemplateBinding Height}">
-                            <Image Source="pack://application:,,,/Assets/Persona/jaemin_face.png"
+							<Image Source="pack://application:,,,/Assets/Persona/jaemin_face.png"
                                    Width="{TemplateBinding Width}" Height="{TemplateBinding Height}"
                                    Stretch="UniformToFill"
                                    SnapsToDevicePixels="True"
                                    RenderOptions.BitmapScalingMode="HighQuality"
                                    RenderTransformOrigin="0.5,0.5">
-                                <Image.RenderTransform>
-                                    <ScaleTransform ScaleX="1.7" ScaleY="1.7"/>
-                                </Image.RenderTransform>
-                            </Image>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Opacity" Value="0.95"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Opacity" Value="0.9"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.55"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
+								<Image.RenderTransform>
+									<ScaleTransform ScaleX="1.7" ScaleY="1.7"/>
+								</Image.RenderTransform>
+							</Image>
+						</Border>
+						<ControlTemplate.Triggers>
+							<Trigger Property="IsMouseOver" Value="True">
+								<Setter Property="Opacity" Value="0.95"/>
+							</Trigger>
+							<Trigger Property="IsPressed" Value="True">
+								<Setter Property="Opacity" Value="0.9"/>
+							</Trigger>
+							<Trigger Property="IsEnabled" Value="False">
+								<Setter Property="Opacity" Value="0.55"/>
+							</Trigger>
+						</ControlTemplate.Triggers>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
+	</Window.Resources>
 
-    <Grid>
-        <ui:ScaleToFitDecorator DesignWidth="1200" DesignHeight="720" AlignToTopLeft="True" Stretch="UniformToFill"
-                                UseLayoutRounding="True"
-                                SnapsToDevicePixels="True"
-                                TextOptions.TextFormattingMode="Display"
-                                TextOptions.TextRenderingMode="ClearType"
-                                RenderOptions.ClearTypeHint="Enabled">
-            <Grid Width="1200" Height="720">
-                <!-- Background (no image): soft gradient + ornaments -->
-                <Border Background="{StaticResource PastelBackgroundImageBrush}"/>
+	<Grid>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="953*"/>
+			<ColumnDefinition Width="248*"/>
+		</Grid.ColumnDefinitions>
+		<ui:ScaleToFitDecorator DesignWidth="1440" DesignHeight="720" AlignToTopLeft="True" Stretch="Uniform"
+								UseLayoutRounding="True"
+								SnapsToDevicePixels="True"
+								TextOptions.TextFormattingMode="Display"
+								TextOptions.TextRenderingMode="ClearType"
+								RenderOptions.ClearTypeHint="Enabled" Grid.ColumnSpan="2">
+			<Grid Width="1440" Height="720">
+				<!-- Background (no image): soft gradient + ornaments -->
+				<Border Background="{StaticResource PastelBackgroundImageBrush}"/>
 
-                <Canvas IsHitTestVisible="False">
-                    <Ellipse Width="520" Height="520" Canvas.Left="-180" Canvas.Top="-160" Fill="{StaticResource PastelBlobBlue}"/>
-                    <Ellipse Width="460" Height="460" Canvas.Left="80" Canvas.Top="520" Fill="{StaticResource PastelBlobPink}"/>
-                    <Ellipse Width="520" Height="520" Canvas.Left="740" Canvas.Top="140" Fill="{StaticResource PastelBlobMint}"/>
-                    <Ellipse Width="340" Height="340" Canvas.Left="980" Canvas.Top="-120" Fill="{StaticResource PastelBlobPink}" Opacity="0.65"/>
-                </Canvas>
+				<Canvas IsHitTestVisible="False"/>
+			</Grid>
+		</ui:ScaleToFitDecorator>
 
-                <!-- Body -->
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition x:Name="LeftNavCol" Width="210"/>
-                        <ColumnDefinition x:Name="LeftGapCol" Width="2"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition x:Name="RightRailCol" Width="18"/>
-                        <ColumnDefinition x:Name="RightPanelCol" Width="300"/>
-                    </Grid.ColumnDefinitions>
+		<!-- Body (NOT scaled) -->
+		<Grid Grid.ColumnSpan="2" Margin="0,40,0,0">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition x:Name="LeftNavCol" Width="250"/>
+				<ColumnDefinition x:Name="LeftGapCol" Width="72"/>
+				<ColumnDefinition Width="*"/>
+				<ColumnDefinition x:Name="RightRailCol" Width="18"/>
+				<ColumnDefinition x:Name="RightPanelCol" Width="250"/>
+			</Grid.ColumnDefinitions>
 
-                    <!-- Left nav -->
-                    <Border x:Name="LeftNavHost" Grid.Column="0" Background="#00FFFFFF" Padding="0">
-                        <Border CornerRadius="18" Background="#5AFFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="0">
-                            <StackPanel>
-                                <TextBlock Text="JARVIS" FontWeight="Bold" FontSize="18" Margin="10,8,0,10" />
+			<!-- Left nav -->
+			<Border x:Name="LeftNavHost" Grid.Column="0" Background="#00FFFFFF" Padding="0" HorizontalAlignment="Stretch" Margin="0">
+				<Border CornerRadius="18" Background="#5AFFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="0" Margin="0">
+					<StackPanel>
+						<TextBlock Text="JARVIS" FontWeight="Bold" FontSize="18" Margin="10,8,0,10" />
 
-                                <ListBox x:Name="Nav"
-                                         Background="Transparent"
-                                         BorderThickness="0"
-                                         FontSize="16"
-                                         SelectionChanged="Nav_SelectionChanged">
-                                    <ListBox.ItemContainerStyle>
-                                        <Style TargetType="ListBoxItem">
-                                            <Setter Property="Padding" Value="10,8"/>
-                                            <Setter Property="MinHeight" Value="40"/>
-                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ListBoxItem">
-                                                        <Border x:Name="Bd"
-                                                                Padding="{TemplateBinding Padding}"
-                                                                CornerRadius="14"
-                                                                Background="Transparent"
-                                                                BorderBrush="Transparent"
-                                                                BorderThickness="1">
-                                                            <ContentPresenter />
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsSelected" Value="True">
-                                                                <Setter TargetName="Bd" Property="Background" Value="#99FFFFFF"/>
-                                                                <Setter TargetName="Bd" Property="BorderBrush" Value="#55B39DFF"/>
-                                                            </Trigger>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="Bd" Property="Background" Value="#77FFFFFF"/>
-                                                                <Setter TargetName="Bd" Property="BorderBrush" Value="#44FFFFFF"/>
-                                                            </Trigger>
-                                                            <Trigger Property="IsEnabled" Value="False">
-                                                                <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ListBox.ItemContainerStyle>
+						<ListBox x:Name="Nav"
+								 Background="Transparent"
+								 BorderThickness="0"
+								 FontSize="16"
+								 SelectionChanged="Nav_SelectionChanged">
+							<ListBox.ItemContainerStyle>
+								<Style TargetType="ListBoxItem">
+									<Setter Property="Padding" Value="10,8"/>
+									<Setter Property="MinHeight" Value="40"/>
+									<Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+									<Setter Property="Template">
+										<Setter.Value>
+											<ControlTemplate TargetType="ListBoxItem">
+												<Border x:Name="Bd"
+														Padding="{TemplateBinding Padding}"
+														CornerRadius="14"
+														Background="Transparent"
+														BorderBrush="Transparent"
+														BorderThickness="1">
+													<ContentPresenter />
+												</Border>
+												<ControlTemplate.Triggers>
+													<Trigger Property="IsSelected" Value="True">
+														<Setter TargetName="Bd" Property="Background" Value="#99FFFFFF"/>
+														<Setter TargetName="Bd" Property="BorderBrush" Value="#55B39DFF"/>
+													</Trigger>
+													<Trigger Property="IsMouseOver" Value="True">
+														<Setter TargetName="Bd" Property="Background" Value="#77FFFFFF"/>
+														<Setter TargetName="Bd" Property="BorderBrush" Value="#44FFFFFF"/>
+													</Trigger>
+													<Trigger Property="IsEnabled" Value="False">
+														<Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+													</Trigger>
+												</ControlTemplate.Triggers>
+											</ControlTemplate>
+									</Setter.Value>
+								</Setter>
+							</Style>
+						</ListBox.ItemContainerStyle>
 
-                                    <ListBoxItem Tag="home" Content="Home" />
-                                    <ListBoxItem Tag="chat" Content="Chat" />
-                                    <ListBoxItem Tag="todos" Content="Todos" />
-                                    <ListBoxItem Tag="map" Content="Map" />
-                                    <ListBoxItem Tag="skills" Content="Skills" />
-                                    <ListBoxItem Tag="settings" Content="Settings" />
-                                </ListBox>
-                            </StackPanel>
-                        </Border>
-                    </Border>
+						<ListBoxItem Tag="home" Content="Home" />
+						<ListBoxItem Tag="chat" Content="Chat" />
+						<ListBoxItem Tag="todos" Content="Todos" />
+						<ListBoxItem Tag="map" Content="Map" />
+						<ListBoxItem Tag="skills" Content="Skills" />
+						<ListBoxItem Tag="settings" Content="Settings" />
+					</ListBox>
+					</StackPanel>
+				</Border>
+			</Border>
 
-                    <!-- Combined area: Calendar(top) + Summary(bottom) -->
-                    <Grid Grid.Column="2">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="1.25*"/>
-                            <RowDefinition Height="18"/>
-                            <RowDefinition Height="0.75*"/>
-                        </Grid.RowDefinitions>
+			<!-- Combined area: Calendar(top) + Summary(bottom) -->
+			<Grid Grid.Column="2">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="1.25*"/>
+					<RowDefinition Height="18"/>
+					<RowDefinition Height="0.75*"/>
+				</Grid.RowDefinitions>
 
-                        <Border Grid.Row="0" Style="{StaticResource LargePanelPink}">
-                            <Frame x:Name="MainFrame" NavigationUIVisibility="Hidden"/>
-                        </Border>
+				<Border Grid.Row="0" Style="{StaticResource LargePanelPink}" Margin="0,0,0,18" Grid.RowSpan="2">
+					<Frame x:Name="MainFrame" NavigationUIVisibility="Hidden" />
+				</Border>
 
-                        <Border Grid.Row="2" Style="{StaticResource LargePanelMint}">
-                            <Frame x:Name="AuxFrame" NavigationUIVisibility="Hidden" />
-                        </Border>
-                    </Grid>
+				<Border Grid.Row="2" Style="{StaticResource LargePanelMint}" Margin="0">
+					<Frame x:Name="AuxFrame" NavigationUIVisibility="Hidden" />
+				</Border>
+			</Grid>
 
-                    <!-- Right panel toggle rail: only used when panel is collapsed (floating button is outside ScaleToFit) -->
-                    <Grid Grid.Column="3" Width="0" />
+			<!-- Right panel toggle rail: only used when panel is collapsed (floating button is outside ScaleToFit) -->
+			<Grid Grid.Column="3" Width="0" />
 
-                    <!-- Right (blue) panel -->
-                    <Border x:Name="RightPanelHost" Grid.Column="4" Style="{StaticResource LargePanelBlue}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
+			<!-- Right (blue) panel -->
+			<Border x:Name="RightPanelHost" Grid.Column="4" Style="{StaticResource LargePanelBlue}" Margin="0">
+				<Grid>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="*"/>
+					</Grid.RowDefinitions>
 
-                            <Border Grid.Row="0"
-                                    CornerRadius="18"
-                                    Background="#B2FFFFFF"
-                                    BorderBrush="#55B39DFF"
-                                    BorderThickness="1"
-                                    Padding="6,4"
-                                    MinHeight="48"
-                                    Margin="0,0,0,12">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
+					<Border Grid.Row="0"
+							CornerRadius="18"
+							Background="#B2FFFFFF"
+							BorderBrush="#55B39DFF"
+							BorderThickness="1"
+							Padding="6,4"
+							MinHeight="48"
+							Margin="0,0,0,12">
+						<Grid>
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="Auto"/>
+								<ColumnDefinition Width="*"/>
+							</Grid.ColumnDefinitions>
 
-                                    <ToggleButton x:Name="RightPanelToggle"
-                                                  Grid.Column="0"
-                                                  Margin="0,0,8,0"
-                                                  Width="40"
-                                                  Height="40"
-                                                  VerticalAlignment="Center"
-                                                  IsChecked="True"
-                                                  Checked="RightPanelToggle_Checked"
-                                                  Unchecked="RightPanelToggle_Unchecked"
-                                                  ToolTip="재민 패널 토글"
-                                                  Style="{StaticResource JaeminPanelToggleStyle}" />
+							<ToggleButton x:Name="RightPanelToggle"
+											  Grid.Column="0"
+											  Margin="0,0,8,0"
+											  Width="40"
+											  Height="40"
+											  VerticalAlignment="Center"
+											  IsChecked="True"
+											  Checked="RightPanelToggle_Checked"
+											  Unchecked="RightPanelToggle_Unchecked"
+											  ToolTip="재민 패널 토글"
+											  Style="{StaticResource JaeminPanelToggleStyle}" />
 
-                                    <TextBlock Grid.Column="1"
-                                               Text="재민 - AI 관리자"
-                                               FontSize="14"
-                                               FontWeight="SemiBold"
-                                               Foreground="#1F2B36"
-                                               VerticalAlignment="Center"
-                                               HorizontalAlignment="Center"/>
-                                </Grid>
-                            </Border>
+							<TextBlock Grid.Column="1"
+										   Text="재민 - AI 관리자"
+										   FontSize="14"
+										   FontWeight="SemiBold"
+										   Foreground="#1F2B36"
+										   VerticalAlignment="Center"
+										   HorizontalAlignment="Center"/>
+						</Grid>
+					</Border>
 
-                            <ui:MainAiWidget Grid.Row="1"
-                                             x:Name="MainAiWidget"
-                                             Margin="0"
-                                             HorizontalAlignment="Stretch"
-                                             VerticalAlignment="Stretch"/>
-                        </Grid>
-                    </Border>
-                </Grid>
-            </Grid>
-        </ui:ScaleToFitDecorator>
+					<ui:MainAiWidget Grid.Row="1"
+								 x:Name="MainAiWidget"
+								 Margin="0"
+								 HorizontalAlignment="Stretch"
+								 VerticalAlignment="Stretch"/>
+				</Grid>
+			</Border>
+		</Grid>
 
-        <!-- Title bar overlay (not scaled): stays at actual window top-right -->
-        <Border x:Name="TitleBarHost"
+		<!-- Title bar overlay (not scaled): stays at actual window top-right -->
+		<Border x:Name="TitleBarHost"
                 Height="40"
                 Background="#00FFFFFF"
                 VerticalAlignment="Top"
-                HorizontalAlignment="Stretch"
-                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-            <DockPanel LastChildFill="True" Margin="0">
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,6,4">
-                    <Button Click="Min_Click" Style="{StaticResource TitleBarButton}">
-                        <TextBlock Text="_" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    </Button>
-                    <Button Click="Max_Click" Margin="6,0,0,0" Style="{StaticResource TitleBarButton}">
-                        <TextBlock Text="[]" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    </Button>
-                    <Button Click="Close_Click" Margin="6,0,0,0" Style="{StaticResource TitleBarButton}">
-                        <TextBlock Text="X" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    </Button>
-                </StackPanel>
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" Grid.ColumnSpan="2">
+			<DockPanel LastChildFill="True" Margin="0">
+				<StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,6,4">
+					<Button Click="Min_Click" Style="{StaticResource TitleBarButton}">
+						<TextBlock Text="_" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+					</Button>
+					<Button Click="Max_Click" Margin="6,0,0,0" Style="{StaticResource TitleBarButton}">
+						<TextBlock Text="[]" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+					</Button>
+					<Button Click="Close_Click" Margin="6,0,0,0" Style="{StaticResource TitleBarButton}">
+						<TextBlock Text="X" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+					</Button>
+				</StackPanel>
 
-                <TextBlock Visibility="Collapsed" />
-            </DockPanel>
-        </Border>
+				<TextBlock Visibility="Collapsed" />
+			</DockPanel>
+		</Border>
 
-        <!-- Floating Jaemin panel toggle (visible only when panel is collapsed) -->
-        <ToggleButton x:Name="RightPanelFloatingToggle"
+		<!-- Floating Jaemin panel toggle (visible only when panel is collapsed) -->
+		<ToggleButton x:Name="RightPanelFloatingToggle"
                       HorizontalAlignment="Right"
                       VerticalAlignment="Top"
                       Margin="0,52,20,0"
@@ -248,6 +247,6 @@
                       ToolTip="재민 패널 열기"
                       Visibility="Collapsed"
                       Checked="RightPanelToggle_Checked"
-                      Style="{StaticResource JaeminPanelToggleStyle}" />
-    </Grid>
+                      Style="{StaticResource JaeminPanelToggleStyle}" Grid.Column="1" />
+	</Grid>
 </Window>

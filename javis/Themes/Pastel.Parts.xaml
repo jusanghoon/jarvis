@@ -30,7 +30,7 @@
         <Setter Property="SnapsToDevicePixels" Value="True"/>
         <Setter Property="Effect">
             <Setter.Value>
-                <DropShadowEffect BlurRadius="18" ShadowDepth="4" Opacity="0.18" Color="#000000"/>
+                <DropShadowEffect BlurRadius="10" ShadowDepth="1" Opacity="0.12" Color="#000000"/>
             </Setter.Value>
         </Setter>
     </Style>

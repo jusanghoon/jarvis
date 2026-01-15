@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -71,10 +72,50 @@ public sealed class ScaleToFitDecorator : Decorator
         }
     }
 
+    private static bool IsInDesignMode(DependencyObject obj)
+    {
+        try
+        {
+            return DesignerProperties.GetIsInDesignMode(obj);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     protected override Size MeasureOverride(Size constraint)
     {
         if (Child is null)
             return new Size(0, 0);
+
+        // Design-time: avoid scaling transforms so the VS/Blend designer feels more "freeform".
+        // Runtime behavior remains unchanged.
+        if (IsInDesignMode(this))
+        {
+            try { Child.RenderTransform = Transform.Identity; } catch { }
+            try { Child.ClearValue(RenderTransformOriginProperty); } catch { }
+            Child.Measure(constraint);
+            return Child.DesiredSize;
+        }
+
+        try
+        {
+            if (javis.Services.RuntimeSettings.Instance.DisableScaleToFit)
+            {
+                // Keep layout working but avoid fractional scaling blur by snapping scale to 5% steps.
+                var uiScale0 = GetGlobalUiScale();
+                var dw0 = DesignWidth / uiScale0;
+                var dh0 = DesignHeight / uiScale0;
+                Child.Measure(new Size(dw0, dh0));
+
+                var scale0 = GetScale(constraint);
+                var snap0 = Math.Round(scale0.scaleX / 0.05) * 0.05;
+                if (snap0 <= 0) snap0 = 1;
+                return new Size(dw0 * snap0, dh0 * snap0);
+            }
+        }
+        catch { }
 
         var uiScale = GetGlobalUiScale();
         var dw = DesignWidth / uiScale;
@@ -82,7 +123,8 @@ public sealed class ScaleToFitDecorator : Decorator
         Child.Measure(new Size(dw, dh));
 
         var scale = GetScale(constraint);
-        return new Size(dw * scale.scaleX, dh * scale.scaleY);
+        var s = SnapScale(scale.scaleX);
+        return new Size(dw * s, dh * s);
     }
 
     protected override Size ArrangeOverride(Size arrangeSize)
@@ -90,16 +132,58 @@ public sealed class ScaleToFitDecorator : Decorator
         if (Child is null)
             return arrangeSize;
 
+        // Design-time: arrange without applying scaling so the designer can directly manipulate sizes.
+        if (IsInDesignMode(this))
+        {
+            try { Child.RenderTransform = Transform.Identity; } catch { }
+            try { Child.ClearValue(RenderTransformOriginProperty); } catch { }
+            Child.Arrange(new Rect(new Point(0, 0), arrangeSize));
+            return arrangeSize;
+        }
+
+        try
+        {
+            if (javis.Services.RuntimeSettings.Instance.DisableScaleToFit)
+            {
+                // Keep layout working but avoid fractional scaling blur by snapping scale to 5% steps.
+                var uiScale0 = GetGlobalUiScale();
+                var dw0 = DesignWidth / uiScale0;
+                var dh0 = DesignHeight / uiScale0;
+
+                var scale0 = GetScale(arrangeSize);
+                var snap0 = Math.Round(scale0.scaleX / 0.05) * 0.05;
+                if (snap0 <= 0) snap0 = 1;
+
+                var childSize0 = new Size(dw0, dh0);
+                var scaledW0 = childSize0.Width * snap0;
+                var scaledH0 = childSize0.Height * snap0;
+                var offsetX0 = AlignToTopLeft ? 0 : (arrangeSize.Width - scaledW0) / 2.0;
+                var offsetY0 = AlignToTopLeft ? 0 : (arrangeSize.Height - scaledH0) / 2.0;
+                if (UseLayoutRounding)
+                {
+                    offsetX0 = Math.Round(offsetX0);
+                    offsetY0 = Math.Round(offsetY0);
+                }
+
+                Child.RenderTransform = new ScaleTransform(snap0, snap0);
+                Child.RenderTransformOrigin = new Point(0, 0);
+                Child.Arrange(new Rect(new Point(offsetX0 / snap0, offsetY0 / snap0), childSize0));
+                return arrangeSize;
+            }
+        }
+        catch { }
+
         var uiScale = GetGlobalUiScale();
         var dw = DesignWidth / uiScale;
         var dh = DesignHeight / uiScale;
 
         var scale = GetScale(arrangeSize);
+        var s = SnapScale(scale.scaleX);
 
         var childSize = new Size(dw, dh);
 
-        var scaledW = childSize.Width * scale.scaleX;
-        var scaledH = childSize.Height * scale.scaleY;
+        var scaledW = childSize.Width * s;
+        var scaledH = childSize.Height * s;
 
         var offsetX = AlignToTopLeft ? 0 : (arrangeSize.Width - scaledW) / 2.0;
         var offsetY = AlignToTopLeft ? 0 : (arrangeSize.Height - scaledH) / 2.0;
@@ -110,10 +194,10 @@ public sealed class ScaleToFitDecorator : Decorator
             offsetY = Math.Round(offsetY);
         }
 
-        Child.RenderTransform = new ScaleTransform(scale.scaleX, scale.scaleY);
+        Child.RenderTransform = new ScaleTransform(s, s);
         Child.RenderTransformOrigin = new Point(0, 0);
 
-        Child.Arrange(new Rect(new Point(offsetX / scale.scaleX, offsetY / scale.scaleY), childSize));
+        Child.Arrange(new Rect(new Point(offsetX / s, offsetY / s), childSize));
 
         return arrangeSize;
     }
@@ -151,5 +235,20 @@ public sealed class ScaleToFitDecorator : Decorator
                 return (s, s);
             }
         }
+
+        throw new InvalidOperationException("Unexpected stretch mode.");
+    }
+
+    private static double SnapScale(double s)
+    {
+        if (double.IsNaN(s) || double.IsInfinity(s) || s <= 0) return 1;
+
+        // If we're very close to 1.0, lock to 1.0 for sharper text.
+        if (Math.Abs(s - 1.0) < 0.03) return 1;
+
+        // Otherwise snap to 5% steps to avoid "micro scales" (e.g. 0.9732) that blur text.
+        var snapped = Math.Round(s / 0.05) * 0.05;
+        if (snapped <= 0) return 1;
+        return snapped;
     }
 }
