@@ -129,18 +129,7 @@ public partial class ChatViewModel : ObservableObject
             OnPropertyChanged(nameof(SelectedRoom));
             OnPropertyChanged(nameof(MessagesView));
 
-            if (value == ChatRoom.Solo && !IsSoloThinkingStarting)
-            {
-                try
-                {
-                    if (StartSoloThinkingCommand.CanExecute(null))
-                        StartSoloThinkingCommand.Execute(null);
-                }
-                catch
-                {
-                    // best-effort
-                }
-            }
+            // NOTE: SOLO 자동 시동은 UI 레이어(ChatPage)에서 오케스트레이터 생명주기와 함께 처리한다.
         }
     }
 

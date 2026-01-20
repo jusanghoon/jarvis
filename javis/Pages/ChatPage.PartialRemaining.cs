@@ -334,7 +334,11 @@ public partial class ChatPage : Page
     // NOTE: PickNextTrack moved to ChatPage.Solo.cs
     // NOTE: MarkTrack moved to ChatPage.Solo.cs
 
-    private OllamaClient LlmA { get; } = new("http://localhost:11434", "qwen3:4b");
-    private OllamaClient LlmB { get; } = new("http://localhost:11434", "qwen3:8b");
-    private OllamaClient Llm { get; } = new("http://localhost:11434", "qwen3:4b");
+    private const string OllamaBaseUrl = "http://localhost:11434";
+
+    private OllamaClient LlmA { get; } = new(OllamaBaseUrl, "qwen3:4b");
+    private OllamaClient LlmB { get; } = new(OllamaBaseUrl, "qwen3:8b");
+
+    private OllamaClient Llm
+        => new(OllamaBaseUrl, _soloOrch?.ModelName ?? RuntimeSettings.Instance.AiModelName);
 }

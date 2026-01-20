@@ -234,8 +234,8 @@
                     <Grid>
                         <Border Background="#112E1A47" IsHitTestVisible="False" CornerRadius="15"/>
 
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <controls:CyberHeartControl x:Name="SoloHeart" Width="100" Height="100" Background="Red" IsThinking="True" Margin="0,0,20,0" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                            <controls:CyberHeartControl x:Name="SoloHeart" Width="100" Height="100" Background="Red" IsThinking="True" Margin="0,0,20,0" Visibility="Collapsed" />
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="JAVIS CORE" FontSize="24" FontWeight="Bold" Foreground="White"/>
                                 <TextBlock Text="{Binding ThinkingStage}" FontSize="16" Foreground="#DDE7FF" MaxWidth="500" TextWrapping="Wrap"/>
@@ -307,7 +307,7 @@
             <Border.Style>
                 <Style TargetType="Border" BasedOn="{StaticResource SubCardBorderStyle}">
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding SelectedRoom.Mode}" Value="Solo">
+                        <DataTrigger Binding="{Binding SelectedRoom}" Value="Solo">
                             <Setter Property="Visibility" Value="Collapsed"/>
                         </DataTrigger>
                     </Style.Triggers>

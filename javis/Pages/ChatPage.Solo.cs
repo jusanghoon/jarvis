@@ -14,236 +14,313 @@ public partial class ChatPage : Page
 {
     private async Task SoloProcessOneTurnAsync(string userText, CancellationToken ct)
     {
-        // Restored from previous ChatPage.xaml.cs (verbatim)
-        await TryRunSoloGenerationAsync(async innerCt =>
+        void PostSoloSystem(string t)
         {
-            await RunWithTimeoutAsync(async ct2 =>
+            try
             {
-                await UiAsync(() => MaybeExpireTopic());
-
-                // Snapshot messages on UI thread to avoid cross-thread access / collection mutation races
-                var (messagesSnapshot, topicModeSnapshot, topicSeedSnapshot) = await UiAsync(() =>
+                _ = UiAsync(() =>
                 {
-                    var vm2 = (javis.ViewModels.ChatViewModel)DataContext;
-                    return (vm2.MainMessages.ToList(), _soloTopicMode.ToString(), _soloTopicSeed);
+                    var vm = (javis.ViewModels.ChatViewModel)DataContext;
+                    vm.SoloMessages.Add(new javis.Models.ChatMessage("assistant", t));
                 });
+            }
+            catch { }
+        }
 
-                var recentContext = BuildRecentContext(messagesSnapshot);
-                var topicMode = topicModeSnapshot;
-                var topicSeed = topicSeedSnapshot;
+        var model = _soloOrch?.ModelName ?? RuntimeSettings.Instance.AiModelName;
+        var isIdle = string.IsNullOrWhiteSpace(userText);
+        PostSoloSystem($"[solo] LLM 호출 시작 (model={model}, idle={isIdle})");
 
-                var idle = string.IsNullOrWhiteSpace(userText);
-                var newUserText = (userText ?? "").Trim();
-
-                if (!idle)
+        try
+        {
+            await TryRunSoloGenerationAsync(async innerCt =>
+            {
+                await RunWithTimeoutAsync(async ct2 =>
                 {
-                    var seed = await UiAsync(() => BuildLastTopicSeed((javis.ViewModels.ChatViewModel)DataContext));
-                    await UiAsync(() =>
+                    await UiAsync(() => MaybeExpireTopic());
+
+                    // Snapshot messages on UI thread to avoid cross-thread access / collection mutation races
+                    var (messagesSnapshot, topicModeSnapshot, topicSeedSnapshot) = await UiAsync(() =>
                     {
-                        _soloTopicMode = SoloTopicMode.FollowLastTopic;
-                        _soloTopicSeed = seed;
-                        _soloTopicSeedAt = DateTimeOffset.Now;
+                        var vm2 = (javis.ViewModels.ChatViewModel)DataContext;
+                        return (vm2.MainMessages.ToList(), _soloTopicMode.ToString(), _soloTopicSeed);
                     });
-                    topicMode = SoloTopicMode.FollowLastTopic.ToString();
-                    topicSeed = seed;
-                }
 
-                var track = PickNextTrack(idle, newUserText, topicMode);
+                    var recentContext = BuildRecentContext(messagesSnapshot);
+                    var topicMode = topicModeSnapshot;
+                    var topicSeed = topicSeedSnapshot;
 
-                if (_forceDebate && !idle && !string.IsNullOrWhiteSpace(newUserText))
-                    track = "debate";
+                    var idle = string.IsNullOrWhiteSpace(userText);
+                    var newUserText = (userText ?? "").Trim();
 
-#if DEBUG
-                if (FORCE_DEBATE_DEBUG && !idle && !string.IsNullOrWhiteSpace(newUserText))
-                    track = "debate";
-#endif
-
-                if (idle)
-                    await Task.Delay(2000, ct2);
-
-                var vaultSnippets = Kernel.PersonalVaultIndex.BuildSnippetsBlockForPrompt(6);
-                var hasSnippets = !(vaultSnippets.Contains("����") || vaultSnippets.Contains("�����ϴ�"));
-
-                if (idle && !hasSnippets && track == "reflect")
-                    track = "maintain";
-
-                var repeatCandidateBlock = "";
-
-                string json;
-
-                if (track == "debate")
-                {
-                    _debateLastAt = DateTimeOffset.Now;
-                    SetSoloStatus("SOLO: debate…");
-                    try { javis.App.Kernel?.Logger?.Log("solo.track", new { track = "debate" }); } catch { }
-
-#if DEBUG
-                    await UiAsync(() => AddImmediate("assistant", "(debug) debate selected"));
-                    try { javis.App.Kernel?.Logger?.Log("solo.debug.pick", new { idle, len = newUserText?.Length ?? 0, track }); } catch { }
-#endif
-
-                    json = await RunDialogueAndGetFinalJsonAsync(
-                        idle, track, newUserText ?? string.Empty, recentContext, topicMode, topicSeed, vaultSnippets, ct2);
-                }
-                else
-                {
-                    var prompt = BuildSoloPrompt(
-                        idle, track, newUserText, recentContext,
-                        Host.GetSkillSummaries(),
-                        vaultSnippets,
-                        repeatCandidateBlock,
-                        topicMode,
-                        topicSeed
-                    );
-
-                    try { javis.App.Kernel?.Logger?.Log("solo.llm.request", new { idle, track }); } catch { }
-
-                    // stream tokens to overlay (best-effort) while building a complete response for JSON extraction
-                    var sb = new System.Text.StringBuilder();
-                    try { _soloOrchBackend?.EmitToken("\n"); } catch { }
-
-                    await foreach (var chunk in Llm.StreamGenerateAsync(prompt, ct2))
+                    if (!idle)
                     {
-                        sb.Append(chunk);
-                        try { _soloOrchBackend?.EmitToken(chunk); } catch { }
+                        var seed = await UiAsync(() => BuildLastTopicSeed((javis.ViewModels.ChatViewModel)DataContext));
+                        await UiAsync(() =>
+                        {
+                            _soloTopicMode = SoloTopicMode.FollowLastTopic;
+                            _soloTopicSeed = seed;
+                            _soloTopicSeedAt = DateTimeOffset.Now;
+                        });
+                        topicMode = SoloTopicMode.FollowLastTopic.ToString();
+                        topicSeed = seed;
                     }
 
-                    var raw = sb.ToString();
-                    json = JsonUtil.ExtractFirstJsonObject(raw);
-                }
+                    var track = PickNextTrack(idle, newUserText, topicMode);
 
-                try { javis.App.Kernel?.Logger?.Log("solo.llm.response", new { idle, track, json }); } catch { }
-
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-
-                var intent = root.TryGetProperty("intent", out var iEl) ? (iEl.GetString() ?? "say") : "say";
-
-                if (track == "debate" && !idle && string.Equals(intent, "sleep", StringComparison.OrdinalIgnoreCase))
-                    intent = "say";
+                    if (_forceDebate && !idle && !string.IsNullOrWhiteSpace(newUserText))
+                        track = "debate";
 
 #if DEBUG
-                if (track == "debate")
-                {
-                    var sayPreview = root.TryGetProperty("say", out var sEl2) ? (sEl2.GetString() ?? "") : "";
-                    await UiAsync(() => AddImmediate("assistant", $"(debug) debate intent={intent}, idle={idle}, newUserLen={newUserText?.Length ?? 0}, sayLen={sayPreview.Length}"));
-                }
+                    if (FORCE_DEBATE_DEBUG && !idle && !string.IsNullOrWhiteSpace(newUserText))
+                        track = "debate";
 #endif
-
-                if (intent == "say")
-                {
-                    var text = root.TryGetProperty("say", out var sEl) ? (sEl.GetString() ?? "") : "";
-
-                    if (!idle && string.IsNullOrWhiteSpace(text))
-                        text = "(debate) 응답이 비어있어서 요약을 다시 생성해야 합니다. 질문을 조금 더 구체적으로 써줘.";
 
                     if (idle)
-                    {
-                        await Task.Delay(900, ct2);
-                        await UiAsync(() => MarkTrack(track));
-                        return;
-                    }
+                        await Task.Delay(2000, ct2);
 
-                    if (!string.IsNullOrWhiteSpace(text))
-                        await UiAsync(() => AppendAssistant($"??? {text}"));
-                }
-                else if (intent == "save_note")
-                {
-                    if (!Host.SoloLimiter.CanWriteNow())
-                    {
-                        await Task.Delay(1200, ct2);
-                        await UiAsync(() => MarkTrack(track));
-                        return;
-                    }
+                    var vaultSnippets = Kernel.PersonalVaultIndex.BuildSnippetsBlockForPrompt(6);
+                    var hasSnippets = !(vaultSnippets.Contains("����") || vaultSnippets.Contains("�����ϴ�"));
 
-                    var noteEl = root.GetProperty("note");
-                    var title = noteEl.TryGetProperty("title", out var tEl) ? (tEl.GetString() ?? "노트") : "노트";
-                    var body = noteEl.TryGetProperty("body", out var bEl) ? (bEl.GetString() ?? "") : "";
+                    if (idle && !hasSnippets && track == "reflect")
+                        track = "maintain";
 
-                    var isRepeat = await UiAsync(() => IsRepeatNote(title, body));
-                    if (isRepeat)
+                    var repeatCandidateBlock = "";
+
+                    string json;
+
+                    if (track == "debate")
                     {
-                        if (_soloRepeatHit >= 2)
+                        _debateLastAt = DateTimeOffset.Now;
+                        SetSoloStatus("SOLO: debate…");
+                        try { javis.App.Kernel?.Logger?.Log("solo.track", new { track = "debate" }); } catch { }
+
+#if DEBUG
+                        await UiAsync(() => AddImmediate("assistant", "(debug) debate selected"));
+                        try { javis.App.Kernel?.Logger?.Log("solo.debug.pick", new { idle, len = newUserText?.Length ?? 0, track }); } catch { }
+#endif
+
+                        json = await RunDialogueAndGetFinalJsonAsync(
+                            idle, track, newUserText ?? string.Empty, recentContext, topicMode, topicSeed, vaultSnippets, ct2);
+
+                        if (string.IsNullOrWhiteSpace(json))
                         {
                             await UiAsync(() =>
                             {
-                                _soloTopicMode = SoloTopicMode.FreePlay;
-                                _soloTopicSeed = "";
-                                _soloTopicSeedAt = DateTimeOffset.Now;
+                                var vm = (javis.ViewModels.ChatViewModel)DataContext;
+                                vm.SoloMessages.Add(new javis.Models.ChatMessage("assistant", "(solo) debate 응답이 비어있습니다."));
                             });
+                            await UiAsync(() => MarkTrack(track));
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        var prompt = BuildSoloPrompt(
+                            idle, track, newUserText, recentContext,
+                            Host.GetSkillSummaries(),
+                            vaultSnippets,
+                            repeatCandidateBlock,
+                            topicMode,
+                            topicSeed
+                        );
+
+                        try { javis.App.Kernel?.Logger?.Log("solo.llm.request", new { idle, track }); } catch { }
+
+                        // stream tokens to overlay (best-effort) while building a complete response for JSON extraction
+                        var sb = new System.Text.StringBuilder();
+                        try { _soloOrchBackend?.EmitToken("\n"); } catch { }
+
+                        await foreach (var chunk in Llm.StreamGenerateAsync(prompt, ct2))
+                        {
+                            sb.Append(chunk);
+                            try { _soloOrchBackend?.EmitToken(chunk); } catch { }
                         }
 
-                        await Task.Delay(7000, ct2);
-                        return;
+                        var raw = sb.ToString();
+                        json = JsonUtil.ExtractJsonObjectContaining(raw, "\"intent\"");
+                        if (string.IsNullOrWhiteSpace(json))
+                            json = JsonUtil.ExtractFirstJsonObject(raw);
+
+                        await UiAsync(() =>
+                        {
+                            var vm = (javis.ViewModels.ChatViewModel)DataContext;
+                            var preview = (raw ?? string.Empty).Trim();
+                            if (preview.Length > 160) preview = preview.Substring(0, 160) + "…";
+                            vm.SoloMessages.Add(new javis.Models.ChatMessage(
+                                "assistant",
+                                $"[solo] rawLen={(raw ?? string.Empty).Length}, json={(string.IsNullOrWhiteSpace(json) ? "none" : "ok")}, preview={ChatTextUtil.SanitizeUiText(preview)}"));
+                        });
+
+                        if (string.IsNullOrWhiteSpace(json))
+                        {
+                            var plain = (raw ?? string.Empty).Trim();
+                            if (plain.Length == 0)
+                                plain = "(solo) 응답이 비어있습니다.";
+
+                            await UiAsync(() =>
+                            {
+                                var vm = (javis.ViewModels.ChatViewModel)DataContext;
+                                vm.SoloMessages.Add(new javis.Models.ChatMessage("assistant", ChatTextUtil.SanitizeUiText(plain)));
+                            });
+
+                            await UiAsync(() => MarkTrack(track));
+                            return;
+                        }
                     }
 
-                    var tags = ChatTextUtil.ReadStringArray(noteEl, "tags", 8, 40);
-                    var qs = ChatTextUtil.ReadStringArray(noteEl, "questions", 4, 180);
+                    try { javis.App.Kernel?.Logger?.Log("solo.llm.response", new { idle, track, json }); } catch { }
 
-                    var personalNotes = new SoloNotesStore(Kernel.PersonalDataDir);
-                    await personalNotes.AppendAsync("note", new { title, body, tags, questions = qs }, ct2);
-                    Host.SoloLimiter.MarkWrote();
+                    using var doc = JsonDocument.Parse(json);
+                    var root = doc.RootElement;
 
-                    var shouldPromote = tags.Any(t => t.Equals("canon", StringComparison.OrdinalIgnoreCase));
-                    if (shouldPromote)
-                        await Kernel.PersonalCanon.AppendAsync(title, body, tags.ToArray(), kind: "promoted", ct2);
+                    var intent = root.TryGetProperty("intent", out var iEl) ? (iEl.GetString() ?? "say") : "say";
 
-                    var chatText =
-                        $"📝 [SOLO 노트]\n{title}\n\n{ChatTextUtil.TrimMax(body, 350)}" +
-                        (qs.Count > 0 ? "\n\n❓ 질문\n- " + string.Join("\n- ", qs) : "") +
-                        (tags.Count > 0 ? "\n\n🏷️ " + string.Join(", ", tags) : "");
+                    if (track == "debate" && !idle && string.Equals(intent, "sleep", StringComparison.OrdinalIgnoreCase))
+                        intent = "say";
 
-                    await UiAsync(() => AppendAssistant(chatText));
-                }
-                else if (intent == "run_skill")
-                {
-                    var skillId = root.GetProperty("skill_id").GetString() ?? "";
-                    var vars = ReadVars(root);
-                    await UiAsync(() => AppendAssistant($"?? (solo) ��ų ����: {skillId}"));
-                    await Host.RunSkillByIdAsync(skillId, vars, ct2);
-                }
-                else if (intent == "create_skill")
-                {
-                    var now = DateTimeOffset.Now;
-                    if (_soloCreateCount >= MAX_CREATES_PER_SESSION || (now - _soloLastCreateAt) < CreateCooldown)
+#if DEBUG
+                    if (track == "debate")
                     {
-                        await UiAsync(() => AppendAssistant("?? (solo) ��� ������ ��� ����, ���̵��� ��Ʈ�� �����Ұ�."));
+                        var sayPreview = root.TryGetProperty("say", out var sEl2) ? (sEl2.GetString() ?? "") : "";
+                        await UiAsync(() => AddImmediate("assistant", $"(debug) debate intent={intent}, idle={idle}, newUserLen={newUserText?.Length ?? 0}, sayLen={sayPreview.Length}"));
+                    }
+#endif
+
+                    if (intent == "say")
+                    {
+                        var text = root.TryGetProperty("say", out var sEl) ? (sEl.GetString() ?? "") : "";
+
+                        if (!idle && string.IsNullOrWhiteSpace(text))
+                            text = "(debate) 응답이 비어있어서 요약을 다시 생성해야 합니다. 질문을 조금 더 구체적으로 써줘.";
+
+                        if (idle)
+                        {
+                            await Task.Delay(900, ct2);
+                        await UiAsync(() =>
+                        {
+                            var vm = (javis.ViewModels.ChatViewModel)DataContext;
+                            vm.SoloMessages.Add(new javis.Models.ChatMessage("assistant", "[solo] idle=true (say)"));
+                        });
                         await UiAsync(() => MarkTrack(track));
                         return;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(text))
+                            await UiAsync(() =>
+                            {
+                                var vm = (javis.ViewModels.ChatViewModel)DataContext;
+                                vm.SoloMessages.Add(new javis.Models.ChatMessage("assistant", ChatTextUtil.SanitizeUiText(text)));
+                            });
+                    }
+                    else if (intent == "save_note")
+                    {
+                        if (!Host.SoloLimiter.CanWriteNow())
+                        {
+                            await Task.Delay(1200, ct2);
+                            await UiAsync(() => MarkTrack(track));
+                            return;
+                        }
+
+                        var noteEl = root.GetProperty("note");
+                        var title = noteEl.TryGetProperty("title", out var tEl) ? (tEl.GetString() ?? "노트") : "노트";
+                        var body = noteEl.TryGetProperty("body", out var bEl) ? (bEl.GetString() ?? "") : "";
+
+                        var isRepeat = await UiAsync(() => IsRepeatNote(title, body));
+                        if (isRepeat)
+                        {
+                            if (_soloRepeatHit >= 2)
+                            {
+                                await UiAsync(() =>
+                                {
+                                    _soloTopicMode = SoloTopicMode.FreePlay;
+                                    _soloTopicSeed = "";
+                                    _soloTopicSeedAt = DateTimeOffset.Now;
+                                });
+                            }
+
+                            await Task.Delay(7000, ct2);
+                            return;
+                        }
+
+                        var tags = ChatTextUtil.ReadStringArray(noteEl, "tags", 8, 40);
+                        var qs = ChatTextUtil.ReadStringArray(noteEl, "questions", 4, 180);
+
+                        var personalNotes = new SoloNotesStore(Kernel.PersonalDataDir);
+                        await personalNotes.AppendAsync("note", new { title, body, tags, questions = qs }, ct2);
+                        Host.SoloLimiter.MarkWrote();
+
+                        var shouldPromote = tags.Any(t => t.Equals("canon", StringComparison.OrdinalIgnoreCase));
+                        if (shouldPromote)
+                            await Kernel.PersonalCanon.AppendAsync(title, body, tags.ToArray(), kind: "promoted", ct2);
+
+                        var chatText =
+                            $"📝 [SOLO 노트]\n{title}\n\n{ChatTextUtil.TrimMax(body, 350)}" +
+                            (qs.Count > 0 ? "\n\n❓ 질문\n- " + string.Join("\n- ", qs) : "") +
+                            (tags.Count > 0 ? "\n\n🏷️ " + string.Join(", ", tags) : "");
+
+                        await UiAsync(() => AppendAssistant(chatText));
+                    }
+                    else if (intent == "run_skill")
+                    {
+                        var skillId = root.GetProperty("skill_id").GetString() ?? "";
+                        var vars = ReadVars(root);
+                        await UiAsync(() => AppendAssistant($"?? (solo) 스킬 실행: {skillId}"));
+                        await Host.RunSkillByIdAsync(skillId, vars, ct2);
+                    }
+                    else if (intent == "create_skill")
+                    {
+                        var now = DateTimeOffset.Now;
+                        if (_soloCreateCount >= MAX_CREATES_PER_SESSION || (now - _soloLastCreateAt) < CreateCooldown)
+                        {
+                            await UiAsync(() => AppendAssistant("?? (solo) 스킬 생성은 잠시 쉬자. 너무 자주 만들면 위험해."));
+                            await UiAsync(() => MarkTrack(track));
+                            return;
+                        }
+
+                        var req = root.GetProperty("requirement").GetString() ?? "";
+                        await UiAsync(() => AppendAssistant($"??? (solo) 스킬 생성: {req}"));
+
+                        var (skillFile, pluginFile) = await Host.CreateSkillAsync(req);
+                        _soloCreateCount++;
+                        _soloLastCreateAt = now;
+
+                        await UiAsync(() => AppendAssistant(
+                            pluginFile is null
+                                ? $"✅ 생성 완료: {skillFile}"
+                                : $"✅ 생성 완료: {skillFile} (+ {pluginFile})"));
+                    }
+                    else if (intent == "sleep")
+                    {
+                        var ms = root.TryGetProperty("ms", out var msEl) ? msEl.GetInt32() : 0;
+                        ms = Math.Clamp(ms, 3000, 55_000);
+                        SetSoloStatus($"대기 {ms}ms…");
+                        await Task.Delay(ms, ct2);
+                    }
+                    else if (intent == "stop")
+                    {
+                        await UiAsync(() => AppendAssistant("(solo) 종료할게."));
+                        await UiAsync(() => OnModeChanged(javis.ViewModels.ChatRoom.Main));
+                    }
+                    else
+                    {
+                        await UiAsync(() => AppendAssistant($"(solo) 알 수 없는 intent: {intent}"));
                     }
 
-                    var req = root.GetProperty("requirement").GetString() ?? "";
-                    await UiAsync(() => AppendAssistant($"??? (solo) ��� ����: {req}"));
+                    await UiAsync(() => MarkTrack(track));
+                }, TimeSpan.FromSeconds(90), innerCt);
+            }, ct);
 
-                    var (skillFile, pluginFile) = await Host.CreateSkillAsync(req);
-                    _soloCreateCount++;
-                    _soloLastCreateAt = now;
-
-                    await UiAsync(() => AppendAssistant(
-                        pluginFile is null
-                            ? $"? ���� �Ϸ�: {skillFile}"
-                            : $"? ���� �Ϸ�: {skillFile} (+ {pluginFile})"));
-                }
-                else if (intent == "sleep")
-                {
-                    var ms = root.TryGetProperty("ms", out var msEl) ? msEl.GetInt32() : 0;
-                    ms = Math.Clamp(ms, 3000, 55_000);
-                    SetSoloStatus($"��� {ms}ms��");
-                    await Task.Delay(ms, ct2);
-                }
-                else if (intent == "stop")
-                {
-                    await UiAsync(() => AppendAssistant("(solo) ��ü �����Ұ�."));
-                    await UiAsync(() => OnModeChanged(javis.ViewModels.ChatRoom.Main));
-                }
-                else
-                {
-                    await UiAsync(() => AppendAssistant($"(solo) �� �� ���� intent: {intent}"));
-                }
-
-                await UiAsync(() => MarkTrack(track));
-            }, TimeSpan.FromSeconds(90), innerCt);
-        }, ct);
+            PostSoloSystem("[solo] LLM 호출 완료");
+        }
+        catch (OperationCanceledException)
+        {
+            PostSoloSystem("[solo] LLM 호출 취소됨");
+        }
+        catch (Exception ex)
+        {
+            PostSoloSystem($"[solo] LLM 오류: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     private static string BuildRecentContext(IReadOnlyList<javis.Models.ChatMessage> messages, int take = 10, int maxRecentChars = 1400)
@@ -332,19 +409,23 @@ public partial class ChatPage : Page
         var angleText = AngleInstruction(angleId);
 
         return $$"""
-{Host.Persona.CoreText}
+ {{Host.Persona.CoreText}}
 
-{Host.Persona.SoloOverlayText}
+ {{Host.Persona.SoloOverlayText}}
 
 [SOLO PLAY / SELF-IMPROVEMENT MISSION]
 너는 현재 시스템의 성능과 사용자 경험을 분석하여 스스로 개선안을 도출하는 지능체다.
 새로운 스킬이나 편의 기능을 기획하고 제안하라.
 
+[LANG]
+- 모든 출력(설명/질문/제안/노트/스킬 요구사항/JSON 문자열 값)은 반드시 한국어로 작성해라.
+- 영어로 답하지 마라.
+
 - 개선 제안을 만들 때는 반드시 다음 형식으로 1줄 이상 포함해라:
   [FEAT_PROPOSAL]: (제안 내용)
 
-[CANON]
-{canonBlock}
+ [CANON]
+ {{canonBlock}}
 
 idle={idle}
 track={track}
@@ -355,23 +436,23 @@ has_snippets={hasSnippets}
 angle_id={angleId}
 angle_rule={angleText}
 
-[TOPIC SEED]
-{(hasTopic ? topicSeed : "(����)")}
+ [TOPIC SEED]
+ {{(hasTopic ? topicSeed : "(����)")}}
 
-[�ֱ� ��ȭ(����)]
-{recentContext}
+ [�ֱ� ��ȭ(����)]
+ {{recentContext}}
 
-[�� ����� �Է�(������ �̰͸� ����)]
-{newUserText}
+ [�� ����� �Է�(������ �̰͸� ����)]
+ {{newUserText}}
 
-[�ݺ� ���� �ĺ�]
-{repeatCandidateBlock}
+ [�ݺ� ���� �ĺ�]
+ {{repeatCandidateBlock}}
 
-[���� ��ų]
-{skillSummaries}
+ [���� ��ų]
+ {{skillSummaries}}
 
-[�ֱ� �ڷ� ������]
-{vaultSnippets}
+ [�ֱ� �ڷ� ������]
+ {{vaultSnippets}}
 
 �ٹ� ��Ģ:
 - "SOLO", "Ȱ��ȭ", "����", "�ٽ� ����" ���� ��Ÿ ����/�ȳ� ���� ����.

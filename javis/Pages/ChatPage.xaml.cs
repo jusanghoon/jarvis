@@ -67,8 +67,9 @@ public partial class ChatPage : Page
             _ = _soloOrch?.StartAsync();
 
             // [추가] 자동 사유 트리거: 버튼 클릭 없이 즉시 사유 프로세스 가동
+            // Solo backend는 userText가 비어있을 때(idle=true) 내부 루프를 '유휴 사유'로 처리한다.
             var msgId = Interlocked.Increment(ref _nextUserMsgId);
-            _soloOrch?.OnUserMessage(msgId, "(system) 자동 사유 시작");
+            _soloOrch?.OnUserMessage(msgId, "");
 
             if (room == javis.ViewModels.ChatRoom.Solo)
             {
@@ -310,7 +311,8 @@ public partial class ChatPage : Page
         _soloOrchBackend = new ChatPageSoloBackendAdapter(SoloProcessOneTurnAsync);
         _soloOrch = new SoloOrchestrator(sink, _soloOrchBackend)
         {
-            ModelName = "gemma3:4b"
+            ModelName = "gemma3:4b",
+            AutoContinue = true
         };
 
         // Solo live stream: show the sentence being generated and flash the heart per token.

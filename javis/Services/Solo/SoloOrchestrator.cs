@@ -42,6 +42,8 @@ public sealed class SoloOrchestrator : IAsyncDisposable
     public bool IsRunning => _loopTask is { IsCompleted: false };
     public SoloState State { get; private set; } = SoloState.Off;
 
+    public bool AutoContinue { get; set; } = false;
+
     public SoloOrchestrator(ISoloUiSink ui, ISoloBackend backend)
     {
         _ui = ui;
@@ -181,6 +183,27 @@ public sealed class SoloOrchestrator : IAsyncDisposable
             catch (Exception ex)
             {
                 _ui.PostSystem($"SOLO 오류: {ex.Message}");
+            }
+            finally
+            {
+                if (AutoContinue && State == SoloState.Running && !ct.IsCancellationRequested)
+                {
+                    var cancelled = false;
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        cancelled = true;
+                    }
+
+                    if (!cancelled && !ct.IsCancellationRequested && AutoContinue && State == SoloState.Running)
+                    {
+                        var nextId = System.Threading.Interlocked.Increment(ref _lastProcessedUserMsgId);
+                        _inbox.Writer.TryWrite(new SoloTurnInput(nextId, string.Empty));
+                    }
+                }
             }
         }
     }
