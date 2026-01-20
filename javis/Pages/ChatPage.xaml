@@ -4,8 +4,21 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:models="clr-namespace:javis.Models"
+      xmlns:javis="clr-namespace:javis.ViewModels"
+      xmlns:controls="clr-namespace:javis.Controls"
       mc:Ignorable="d"
       Background="Transparent">
+
+    <Page.Resources>
+        <DataTemplate x:Key="SoloMessageTemplate">
+            <Border BorderBrush="#8A2BE2" BorderThickness="1,0,0,0" Margin="20,5,5,5" Padding="15,10">
+                <StackPanel>
+                    <TextBlock Text="[자바스 자아 성찰]" FontSize="10" Foreground="#8A2BE2" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Foreground="#444"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </Page.Resources>
 
     <Grid x:Name="ChatRoot" Margin="12" AllowDrop="True" Drop="ChatRoot_Drop">
         <Grid.RowDefinitions>
@@ -51,18 +64,101 @@
             </Grid>
         </Border>
 
-        <!-- (B) Messages area -->
-        <ListBox x:Name="ChatList"
-                 Grid.Row="2"
-                 ItemsSource="{Binding MessagesView}"
-                 Background="Transparent"
-                 BorderThickness="0"
-                 Padding="0"
-                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                 ScrollViewer.CanContentScroll="True"
-                 VirtualizingStackPanel.IsVirtualizing="True"
-                 VirtualizingStackPanel.VirtualizationMode="Recycling">
+        <!-- (A3) Status badge row (mode) -->
+        <Border Grid.Row="2" Style="{StaticResource SubCardBorderStyle}" Margin="0,0,0,6">
+            <DockPanel LastChildFill="True">
+                <Border CornerRadius="999" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" Padding="10,4" Margin="0,0,8,0">
+                    <TextBlock Foreground="#1F2B36" FontWeight="SemiBold">
+                        <TextBlock.Text>
+                            <MultiBinding StringFormat="모드: {0}">
+                                <Binding Path="SelectedRoom"/>
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </Border>
+
+                <!-- Mode segment (moved from bottom) -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,0,0,0">
+                    <ToggleButton x:Name="RoomMainTab" Content="Chat" Style="{StaticResource ChatRoomTabStyle}" Click="RoomMain_Click" IsChecked="True"/>
+                    <ToggleButton x:Name="RoomSoloTab" Content="Solo" Style="{StaticResource ChatRoomTabStyle}" Margin="8,0,0,0" Click="RoomSolo_Click"/>
+                    <ToggleButton x:Name="RoomDuoTab" Content="Dialogue" Style="{StaticResource ChatRoomTabStyle}" Margin="8,0,0,0" Click="RoomDuo_Click"/>
+                </StackPanel>
+
+                <Border CornerRadius="999" Background="#F3E8FF" BorderBrush="#D8B4FE" BorderThickness="1" Padding="10,4">
+                    <TextBlock FontWeight="SemiBold" Foreground="#5B21B6">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="일반 대화"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedRoom}" Value="Solo">
+                                        <Setter Property="Text" Value="연구 및 자아 성찰 중..."/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Border>
+            </DockPanel>
+        </Border>
+
+        <!-- (B) Messages area + Suggestions sidebar -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="500"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0">
+                <Border x:Name="ChatHistoryHost" CornerRadius="18" BorderThickness="1" BorderBrush="{StaticResource CardBorder}" Padding="10">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="#F9FAFB"/>
+                        <Setter Property="Effect">
+                            <Setter.Value>
+                                <DropShadowEffect Color="#00000000" BlurRadius="0" ShadowDepth="0" Opacity="0"/>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedRoom}" Value="Solo">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#F3E8FF" Offset="0"/>
+                                            <GradientStop Color="#E0E7FF" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+
+                                <Setter Property="BorderBrush" Value="#8A2BE2"/>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#8A2BE2" BlurRadius="16" ShadowDepth="0" Opacity="0.35"/>
+                                    </Setter.Value>
+                                </Setter>
+
+                                <DataTrigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                            <DoubleAnimation Storyboard.TargetProperty="(Border.Effect).(DropShadowEffect.Opacity)"
+                                                             From="0.18" To="0.48" Duration="0:0:1.2"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.EnterActions>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+
+                <ListBox x:Name="ChatList"
+                         ItemsSource="{Binding MessagesView}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="0"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.CanContentScroll="True"
+                         VirtualizingStackPanel.IsVirtualizing="True"
+                         VirtualizingStackPanel.VirtualizationMode="Recycling">
 
             <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
@@ -82,8 +178,8 @@
                 </Style>
             </ListBox.ItemContainerStyle>
 
-            <ListBox.ItemTemplate>
-                <DataTemplate DataType="{x:Type models:ChatMessage}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate DataType="{x:Type models:ChatMessage}">
                     <Border x:Name="Bubble"
                             CornerRadius="16"
                             Padding="14"
@@ -110,7 +206,10 @@
                         </StackPanel>
                     </Border>
 
-                    <DataTemplate.Triggers>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding DataContext.SelectedRoom, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="Solo">
+                                    <Setter Property="ContentTemplate" Value="{StaticResource SoloMessageTemplate}"/>
+                                </DataTrigger>
                         <DataTrigger Binding="{Binding Role}" Value="user">
                             <Setter TargetName="Bubble" Property="HorizontalAlignment" Value="Right"/>
                             <Setter TargetName="Bubble" Property="Background" Value="{StaticResource ChatBubbleUserBg}"/>
@@ -137,18 +236,150 @@
                             <Setter TargetName="Bubble" Property="HorizontalAlignment" Value="Left"/>
                             <Setter TargetName="Speaker" Property="Text" Value="Jarvis"/>
                         </DataTrigger>
-                    </DataTemplate.Triggers>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                </Border>
+
+                <!-- Solo overlay view -->
+                <Border Grid.Row="1" CornerRadius="18" Background="#AA2E1A47" BorderBrush="#558A2BE2" BorderThickness="1" Padding="18">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedRoom}" Value="Solo">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+
+                    <Border.Effect>
+                        <BlurEffect Radius="10"/>
+                    </Border.Effect>
+
+                    <Grid>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="720">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <controls:CyberHeartControl Width="40" Height="40" Margin="0,0,10,0" IsThinking="True" />
+
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="JAVIS AI" FontWeight="Bold" FontSize="16" Foreground="#FFFFFF"/>
+                                    <TextBlock Text="Core: gemma3:4b" FontSize="12" Foreground="#DDE7FF"/>
+                                </StackPanel>
+
+                                <!-- spinning indicator -->
+                                <Grid Width="18" Height="18" Margin="10,0,0,0" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                                    <Grid.RenderTransform>
+                                        <RotateTransform Angle="0"/>
+                                    </Grid.RenderTransform>
+                                    <Ellipse Width="18" Height="18" Stroke="#AAFFFFFF" StrokeThickness="3" Opacity="0.35"/>
+                                    <Path Data="M9,0 A9,9 0 0 1 18,9" Stroke="White" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                    <Grid.Triggers>
+                                        <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                                            <BeginStoryboard>
+                                                <Storyboard RepeatBehavior="Forever">
+                                                    <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                                                     From="0" To="360" Duration="0:0:1.0"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </EventTrigger>
+                                    </Grid.Triggers>
+                                </Grid>
+
+                                <TextBlock Margin="10,0,0,0" Text="연구 및 자아 성찰 중..." Foreground="#DDE7FF" FontSize="12" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- live thought/status log -->
+                            <TextBlock Margin="0,10,0,0"
+                                       Foreground="#DDE7FF"
+                                       FontSize="13"
+                                       Opacity="0.9"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       Text="{Binding ElementName=SoloStatusText, Path=Text}"/>
+
+                            <TextBlock x:Name="CurrentAction"
+                                       Margin="0,6,0,0"
+                                       Foreground="#DDE7FF"
+                                       FontSize="12"
+                                       Opacity="0.85"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       Text="{Binding ElementName=SoloStatusText, Path=Text}"/>
+
+                            <TextBlock x:Name="ThinkingProgress"
+                                       Margin="0,12,0,0"
+                                       Foreground="#EEF2FF"
+                                       FontSize="13"
+                                       Opacity="0.95"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       Text="{Binding ThinkingProgress}"/>
+
+                            <TextBlock Margin="0,8,0,0"
+                                       Foreground="#C7D2FE"
+                                       FontSize="12"
+                                       Opacity="0.9"
+                                       TextAlignment="Center"
+                                       Text="{Binding ThinkingStage}"/>
+
+                            <Button Margin="0,14,0,0"
+                                    Padding="14,8"
+                                    HorizontalAlignment="Center"
+                                    Content="즉시 사유 시작"
+                                    Command="{Binding ForceThinkingCommand}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Suggestions sidebar (Updates) -->
+            <Expander Grid.Column="1" Header="AI 제안 (클릭하여 열기/닫기)" IsExpanded="False" Margin="10,0,0,0">
+                <Expander.Style>
+                    <Style TargetType="Expander">
+                        <Setter Property="IsExpanded" Value="False"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Source={x:Static javis:UpdatesViewModel.Instance}, Path=DocSuggestions.Count}" Value="0">
+                                <Setter Property="IsExpanded" Value="False"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Source={x:Static javis:UpdatesViewModel.Instance}, Path=DocSuggestions.Count}" Value="1">
+                                <Setter Property="IsExpanded" Value="True"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Source={x:Static javis:UpdatesViewModel.Instance}, Path=DocSuggestions.Count}" Value="2">
+                                <Setter Property="IsExpanded" Value="True"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Source={x:Static javis:UpdatesViewModel.Instance}, Path=DocSuggestions.Count}" Value="3">
+                                <Setter Property="IsExpanded" Value="True"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Source={x:Static javis:UpdatesViewModel.Instance}, Path=DocSuggestions.Count}" Value="4">
+                                <Setter Property="IsExpanded" Value="True"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Expander.Style>
+                <Expander.Content>
+                    <Border CornerRadius="14" Background="#66FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="10">
+                        <ItemsControl ItemsSource="{Binding Source={x:Static javis:UpdatesViewModel.Instance}, Path=DocSuggestions}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="10" Background="#0A000000" BorderBrush="#22000000" BorderThickness="1" Padding="8" Margin="0,0,0,8">
+                                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap"/>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </Expander.Content>
+            </Expander>
+        </Grid>
 
         <!-- (C) Bottom input bar -->
         <Border Grid.Row="3" Style="{StaticResource SubCardBorderStyle}" Margin="0,6,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
@@ -156,43 +387,52 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel x:Name="RoomTabsPanel" Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                    <ToggleButton x:Name="RoomMainTab" Content="ME" Style="{StaticResource ChatRoomTabStyle}" Click="RoomMain_Click" IsChecked="True"/>
-                    <ToggleButton x:Name="RoomSoloTab" Content="SOLO" Style="{StaticResource ChatRoomTabStyle}" Margin="8,0,0,0" Click="RoomSolo_Click"/>
-                    <ToggleButton x:Name="RoomDuoTab" Content="DUO" Style="{StaticResource ChatRoomTabStyle}" Margin="8,0,0,0" Click="RoomDuo_Click"/>
-                </StackPanel>
-
                 <TextBox x:Name="InputBox"
-                         Grid.Row="0" Grid.Column="1"
+                         Grid.Row="0" Grid.Column="0"
                          Height="52"
                          Style="{StaticResource PastelChatInputTextBox}"
+                         HorizontalAlignment="Stretch"
                          Foreground="#FF0F172A"
                          FontSize="19"
                          Padding="6,2"
                          Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
                          PreviewKeyDown="InputBox_PreviewKeyDown"/>
 
-                <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Margin="10,0,10,0" VerticalAlignment="Center">
-                    <Button Margin="0,0,8,0" Height="52" MinWidth="84" Content="Send" Command="{Binding SendCommand}"
-                            Background="{StaticResource AccentBrush}" Foreground="White" BorderBrush="{StaticResource AccentBrush}"/>
-                    <Button Height="52" MinWidth="84" Content="Cancel" Command="{Binding CancelCommand}"/>
-                </StackPanel>
+                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                    <!-- Normal mode buttons -->
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedRoom}" Value="Solo">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
 
-                <StackPanel x:Name="BigModeButtonsPanel" Grid.Row="0" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                    <ToggleButton x:Name="SoloToggle"
-                                  Width="64"
-                                  Height="34"
-                                  Margin="0,0,8,0"
-                                  Style="{StaticResource PastelToggleSwitchStyle}"
-                                  Checked="SoloToggle_Checked"
-                                  Unchecked="SoloToggle_Unchecked"/>
+                        <Button Margin="0,0,8,0" Height="52" MinWidth="84" Content="Send" Command="{Binding SendCommand}"
+                                Background="{StaticResource AccentBrush}" Foreground="White" BorderBrush="{StaticResource AccentBrush}"/>
+                        <Button Height="52" MinWidth="84" Content="Cancel" Command="{Binding CancelCommand}"/>
+                    </StackPanel>
 
-                    <ToggleButton x:Name="DuoToggle"
-                                  Width="64"
-                                  Height="34"
-                                  Style="{StaticResource PastelToggleSwitchStyle}"
-                                  Checked="DuoToggle_Checked"
-                                  Unchecked="DuoToggle_Unchecked"/>
+                    <!-- Solo mode button -->
+                    <Button Height="52" MinWidth="170" Content="생각 강제 종료" Command="{Binding CancelCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Setter Property="Background" Value="#6D28D9"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="BorderBrush" Value="#6D28D9"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedRoom}" Value="Solo">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </StackPanel>
 
                 <TextBlock x:Name="SoloStatusText"
@@ -203,6 +443,7 @@
                            Text=""
                            Foreground="{StaticResource TextMuted}"
                            FontFamily="Segoe UI, Segoe UI Emoji"/>
+
             </Grid>
         </Border>
     </Grid>

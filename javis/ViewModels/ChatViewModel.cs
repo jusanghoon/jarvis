@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using javis.Models;
 using javis.Services;
+using javis.Services.MainAi;
 using Jarvis.Core.Archive;
 using static javis.Services.OllamaChatService;
 
@@ -19,7 +20,7 @@ namespace javis.ViewModels;
 
 public partial class ChatViewModel : ObservableObject
 {
-    private readonly OllamaChatService _ollama = new("http://localhost:11434/api");
+    private readonly OllamaChatService _ollama = new("http://localhost:11434");
     private readonly List<OllamaMessage> _history = new();
 
     private CalendarTodoStore _calendarStore;
@@ -27,6 +28,10 @@ public partial class ChatViewModel : ObservableObject
     private CancellationTokenSource? _cts;
 
     private readonly SynchronizationContext _ui;
+
+    private readonly MainAiProfileExtractor _profileExtractor = new("http://localhost:11434", RuntimeSettings.Instance.AiModelName);
+    private DateTimeOffset _lastProfileUpdateAt = DateTimeOffset.MinValue;
+    private int _mainTurnsSinceProfileUpdate;
 
     public RuntimeSettings Settings => RuntimeSettings.Instance;
 
@@ -59,14 +64,52 @@ public partial class ChatViewModel : ObservableObject
             - 모호하면(예: '다음 주 금요일') 확인 질문을 하라.
             """));
 
-        StatusText = $"READY / {Settings.Model}";
+        StatusText = $"READY / {Settings.AiModelName}";
         Settings.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(Settings.Model))
-                StatusText = $"READY / {Settings.Model}";
+            if (e.PropertyName == nameof(Settings.AiModelName))
+                StatusText = $"READY / {Settings.AiModelName}";
         };
 
         MainMessages.Add(new ChatMessage("assistant", hello));
+    }
+
+    private async Task UpdateProfileFromChatAsync(string lastUserMessage)
+    {
+        try
+        {
+            var msg = (lastUserMessage ?? string.Empty).Trim();
+            if (msg.Length == 0) return;
+
+            var svc = UserProfileService.Instance;
+            var p = svc.TryGetActiveProfile();
+            if (p == null) return;
+
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+            var extracted = await _profileExtractor.ExtractSafeAsync(
+                lastUserMessage: msg,
+                existingReportText: p.ToReportText(includeSources: true),
+                ct: timeoutCts.Token);
+
+            if (extracted.Count == 0) return;
+
+            extracted = MainAiFieldPolicy.Apply(extracted);
+
+            var merged = new Dictionary<string, string>(p.Fields, StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in extracted)
+                merged[kv.Key] = kv.Value;
+
+            merged["main_ai_model"] = RuntimeSettings.Instance.AiModelName;
+            svc.SaveProfile(p with { Fields = merged });
+
+            _mainTurnsSinceProfileUpdate = 0;
+            _lastProfileUpdateAt = DateTimeOffset.Now;
+        }
+        catch
+        {
+            // best-effort
+        }
     }
 
     public ObservableCollection<ChatMessage> MainMessages { get; } = new();
@@ -115,6 +158,16 @@ public partial class ChatViewModel : ObservableObject
     [ObservableProperty] private string _inputText = "";
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string _statusText = "READY";
+
+    // SOLO overlay / streaming feedback
+    [ObservableProperty] private string _thinkingProgress = string.Empty;
+    [ObservableProperty] private string _thinkingStage = "";
+
+    public event Action? ForceThinkingRequested;
+
+    [RelayCommand]
+    private void ForceThinking()
+        => ForceThinkingRequested?.Invoke();
 
     public bool Think { get; set; } = false;
 
@@ -408,7 +461,7 @@ public partial class ChatViewModel : ObservableObject
 
             try
             {
-                javis.App.Kernel?.Logger?.Log("llm.request", new { model = Settings.Model, think = Think, promptChars = text.Length });
+                javis.App.Kernel?.Logger?.Log("llm.request", new { model = Settings.AiModelName, think = Think, promptChars = text.Length });
             }
             catch { }
 
@@ -416,7 +469,7 @@ public partial class ChatViewModel : ObservableObject
 
             var receiver = Task.Run(async () =>
             {
-                await foreach (var delta in _ollama.StreamChatAsync(Settings.Model, context, Think, _cts.Token))
+                await foreach (var delta in _ollama.StreamChatAsync(Settings.AiModelName, context, Think, _cts.Token))
                 {
                     foreach (var r in delta.EnumerateRunes())
                         q.Enqueue(r.ToString());
@@ -500,6 +553,19 @@ public partial class ChatViewModel : ObservableObject
 
             try
             {
+                var snap = MainMessages
+                    .Where(m => !string.IsNullOrWhiteSpace(m.Text))
+                    .TakeLast(30)
+                    .Select(m => $"{m.Role}: {m.Text}")
+                    .ToList();
+
+                var blob = string.Join("\n", snap);
+                _ = Task.Run(() => MainAiProfileExtractor.Instance.AnalyzeAndUpdateProfileAsync(blob));
+            }
+            catch { }
+
+            try
+            {
                 javis.Services.Inbox.DailyInbox.Append(javis.Services.Inbox.InboxKinds.ChatMessage, new
                 {
                     room = "main",
@@ -558,7 +624,7 @@ public partial class ChatViewModel : ObservableObject
             }
             catch { }
 
-            try { javis.App.Kernel?.Logger?.Log("llm.canceled", new { model = Settings.Model }); } catch { }
+            try { javis.App.Kernel?.Logger?.Log("llm.canceled", new { model = Settings.AiModelName }); } catch { }
         }
         catch (Exception ex)
         {
@@ -590,6 +656,20 @@ public partial class ChatViewModel : ObservableObject
         }
         finally
         {
+            try
+            {
+                // Periodic profile extraction from the main chat to enrich the user's profile (best-effort).
+                // Run on turn boundary and throttle to avoid excessive calls.
+                _mainTurnsSinceProfileUpdate++;
+                var dueByTurns = _mainTurnsSinceProfileUpdate >= 6;
+                var dueByTime = (DateTimeOffset.Now - _lastProfileUpdateAt) >= TimeSpan.FromMinutes(7);
+                if (dueByTurns || dueByTime)
+                {
+                    await UpdateProfileFromChatAsync(text);
+                }
+            }
+            catch { }
+
             try { javis.Services.MainAi.MainAiEventBus.Publish(new javis.Services.MainAi.ChatRequestEnded(DateTimeOffset.Now)); } catch { }
 
             IsBusy = false;

@@ -47,6 +47,48 @@ public partial class ChatPage : Page
     {
     }
 
+    private void OnModeChanged(javis.ViewModels.ChatRoom room)
+    {
+        var vm = (ChatViewModel)DataContext;
+        if (vm.SelectedRoom != room)
+            vm.SelectedRoom = room;
+
+        // Keep segmented buttons in sync
+        if (RoomMainTab != null) RoomMainTab.IsChecked = room == javis.ViewModels.ChatRoom.Main;
+        if (RoomSoloTab != null) RoomSoloTab.IsChecked = room == javis.ViewModels.ChatRoom.Solo;
+        if (RoomDuoTab != null) RoomDuoTab.IsChecked = room == javis.ViewModels.ChatRoom.Duo;
+
+        // Solo orchestrator lifecycle
+        if (room == javis.ViewModels.ChatRoom.Solo || room == javis.ViewModels.ChatRoom.Duo)
+        {
+            EnsureSoloOrchestrator();
+            _ = _soloOrch?.StartAsync();
+
+            BeginSoloTopicMode();
+            ShowSoloStartQuestions();
+
+            vm.ContextVars["solo_mode"] = "on";
+            vm.ContextVars["user_action"] = "solo_start";
+
+            if (SoloStatusText != null)
+                SoloStatusText.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            vm.ContextVars["solo_mode"] = "off";
+            vm.ContextVars["user_action"] = "solo_stop";
+
+            try { _ = _soloOrch?.StopAsync(); } catch { }
+
+            SetSoloStatus(string.Empty);
+            if (SoloStatusText != null)
+                SoloStatusText.Visibility = Visibility.Collapsed;
+        }
+
+        _debateShow = room == javis.ViewModels.ChatRoom.Duo;
+        _forceDebate = room == javis.ViewModels.ChatRoom.Duo;
+    }
+
     public ChatPage(ChatMode mode)
     {
         _mode = mode;
@@ -61,6 +103,26 @@ public partial class ChatPage : Page
         IsVisibleChanged += ChatPage_IsVisibleChanged;
 
         UserReloadBus.ActiveUserChanged += OnActiveUserChanged;
+
+        _vm.ForceThinkingRequested += OnForceThinkingRequested;
+    }
+
+    private void OnForceThinkingRequested()
+    {
+        try
+        {
+            if (_vm.SelectedRoom != javis.ViewModels.ChatRoom.Solo)
+                OnModeChanged(javis.ViewModels.ChatRoom.Solo);
+
+            EnsureSoloOrchestrator();
+
+            var msgId = Interlocked.Increment(ref _nextUserMsgId);
+            _soloOrch?.OnUserMessage(msgId, "(user) 즉시 사유 시작");
+        }
+        catch
+        {
+            // best-effort
+        }
     }
 
     private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
@@ -91,8 +153,7 @@ public partial class ChatPage : Page
         switch (_mode)
         {
             case ChatMode.MainChat:
-                vm.SelectedRoom = javis.ViewModels.ChatRoom.Main;
-                RoomMain_Click(this, new RoutedEventArgs());
+                OnModeChanged(javis.ViewModels.ChatRoom.Main);
 
                 // Hard lock: ensure no SOLO/DUO background loop is running
                 if (_soloOrch != null)
@@ -106,29 +167,14 @@ public partial class ChatPage : Page
                 _debateShow = false;
                 _forceDebate = false;
 
-                if (SoloToggle != null) SoloToggle.IsChecked = false;
-                if (DuoToggle != null) DuoToggle.IsChecked = false;
-
-                if (RoomTabsPanel != null) RoomTabsPanel.Visibility = Visibility.Collapsed;
-                if (BigModeButtonsPanel != null) BigModeButtonsPanel.Visibility = Visibility.Collapsed;
                 break;
 
             case ChatMode.SoloThink:
-                vm.SelectedRoom = javis.ViewModels.ChatRoom.Solo;
-                RoomSolo_Click(this, new RoutedEventArgs());
-                if (SoloToggle != null) SoloToggle.IsChecked = true;
-                if (DuoToggle != null) DuoToggle.IsChecked = false;
-
-                if (RoomTabsPanel != null) RoomTabsPanel.Visibility = Visibility.Collapsed;
+                OnModeChanged(javis.ViewModels.ChatRoom.Solo);
                 break;
 
             case ChatMode.DuoDebate:
-                vm.SelectedRoom = javis.ViewModels.ChatRoom.Duo;
-                RoomDuo_Click(this, new RoutedEventArgs());
-                if (SoloToggle != null) SoloToggle.IsChecked = true;
-                if (DuoToggle != null) DuoToggle.IsChecked = true;
-
-                if (RoomTabsPanel != null) RoomTabsPanel.Visibility = Visibility.Collapsed;
+                OnModeChanged(javis.ViewModels.ChatRoom.Duo);
                 break;
         }
 
@@ -137,12 +183,7 @@ public partial class ChatPage : Page
         if (RoomSoloTab != null) RoomSoloTab.Visibility = Visibility.Collapsed;
         if (RoomDuoTab != null) RoomDuoTab.Visibility = Visibility.Collapsed;
 
-        // Hide execution toggles on Main chat page (optional, keeps UX clean)
-        if (_mode == ChatMode.MainChat)
-        {
-            if (SoloToggle != null) SoloToggle.Visibility = Visibility.Collapsed;
-            if (DuoToggle != null) DuoToggle.Visibility = Visibility.Collapsed;
-        }
+        // Legacy UI is removed; mode is controlled by segmented buttons.
     }
 
     private async void ChatPage_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -211,25 +252,30 @@ public partial class ChatPage : Page
                 vm.GetRoom(room).Add(new javis.Models.ChatMessage(role, ChatTextUtil.SanitizeUiText(text)));
                 return true;
             },
-            appendDebug: (t) => { /* keep debug quiet by default */ });
+            appendDebug: (t) => { /* keep debug quiet by default */ },
+            setThinkingProgress: (t) =>
+            {
+                var vm = (ChatViewModel)DataContext;
+                vm.ThinkingProgress = t;
+                vm.ThinkingStage = GuessThinkingStage(t);
+            });
 
         var backend = new ChatPageSoloBackendAdapter(SoloProcessOneTurnAsync);
-        _soloOrch = new SoloOrchestrator(sink, backend);
+        _soloOrch = new SoloOrchestrator(sink, backend)
+        {
+            ModelName = "gemma3:4b"
+        };
     }
 
-    private void DuoToggle_Checked(object sender, RoutedEventArgs e)
+    private static string GuessThinkingStage(string? t)
     {
-        _debateShow = true;
-        _forceDebate = true;
-
-        if (SoloToggle.IsChecked != true)
-            SoloToggle.IsChecked = true;
-    }
-
-    private void DuoToggle_Unchecked(object sender, RoutedEventArgs e)
-    {
-        _debateShow = false;
-        _forceDebate = false;
+        var s = (t ?? string.Empty).Trim();
+        if (s.Length == 0) return "[데이터 분석 중...]";
+        if (s.Contains("proposal", StringComparison.OrdinalIgnoreCase) || s.Contains("제안", StringComparison.OrdinalIgnoreCase))
+            return "[기능 제안서 작성 중...]";
+        if (s.Contains("opt", StringComparison.OrdinalIgnoreCase) || s.Contains("최적", StringComparison.OrdinalIgnoreCase))
+            return "[시스템 최적화 방안 구상 중...]";
+        return "[데이터 분석 중...]";
     }
 
     private void OpenPersonaFolder_Click(object sender, RoutedEventArgs e)
@@ -364,29 +410,17 @@ public partial class ChatPage : Page
 
     private void RoomMain_Click(object sender, RoutedEventArgs e)
     {
-        var vm = (ChatViewModel)DataContext;
-        vm.SelectedRoom = javis.ViewModels.ChatRoom.Main;
-        RoomMainTab.IsChecked = true;
-        RoomSoloTab.IsChecked = false;
-        RoomDuoTab.IsChecked = false;
+        OnModeChanged(javis.ViewModels.ChatRoom.Main);
     }
 
     private void RoomSolo_Click(object sender, RoutedEventArgs e)
     {
-        var vm = (ChatViewModel)DataContext;
-        vm.SelectedRoom = javis.ViewModels.ChatRoom.Solo;
-        RoomMainTab.IsChecked = false;
-        RoomSoloTab.IsChecked = true;
-        RoomDuoTab.IsChecked = false;
+        OnModeChanged(javis.ViewModels.ChatRoom.Solo);
     }
 
     private void RoomDuo_Click(object sender, RoutedEventArgs e)
     {
-        var vm = (ChatViewModel)DataContext;
-        vm.SelectedRoom = javis.ViewModels.ChatRoom.Duo;
-        RoomMainTab.IsChecked = false;
-        RoomSoloTab.IsChecked = false;
-        RoomDuoTab.IsChecked = true;
+        OnModeChanged(javis.ViewModels.ChatRoom.Duo);
     }
 
     private static javis.Services.History.ChatMessageDto ToDto(javis.Models.ChatMessage m)

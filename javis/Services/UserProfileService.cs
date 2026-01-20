@@ -183,6 +183,30 @@ public sealed partial class UserProfileService : ObservableObject
         try { ProfileChanged?.Invoke(profile.Id); } catch { }
     }
 
+    public void UpdateField(string key, string value)
+    {
+        var k = (key ?? string.Empty).Trim();
+        var v = (value ?? string.Empty).Trim();
+        if (k.Length == 0 || v.Length == 0) return;
+
+        try
+        {
+            var p = TryGetActiveProfile();
+            if (p == null) return;
+
+            var merged = p.Fields is null
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(p.Fields, StringComparer.OrdinalIgnoreCase);
+
+            merged[k] = v;
+            SaveProfile(p with { Fields = merged });
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
     private void LoadActive()
     {
         EnsureDefaultProfile();

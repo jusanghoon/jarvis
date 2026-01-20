@@ -154,7 +154,7 @@ public partial class ChatPage : Page
         _soloKickoffQ1 = q1;
         _soloKickoffQ2 = q2;
 
-        if (DuoToggle?.IsChecked == true)
+        if (vm.SelectedRoom == javis.ViewModels.ChatRoom.Duo)
         {
             vm.Messages.Add(new javis.Models.ChatMessage("assistant_a", $"1) {q1}"));
             vm.Messages.Add(new javis.Models.ChatMessage("assistant_b", $"2) {q2}"));

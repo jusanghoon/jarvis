@@ -82,7 +82,7 @@ public partial class ChatPage : Page
         }
 
         // kickoff selection/answer handling
-        if (SoloToggle.IsChecked == true && _soloKickoffPending)
+        if (((ChatViewModel)DataContext).SelectedRoom == javis.ViewModels.ChatRoom.Solo && _soloKickoffPending)
         {
             var s = (_vm.InputText ?? "").Trim();
 
@@ -168,10 +168,6 @@ public partial class ChatPage : Page
             catch { }
 
             vm.ContextVars["user_action"] = "user_message";
-
-            // Ensure debate UI is enabled, but run DUO via dedicated CTS/task wrapper.
-            if (DuoToggle?.IsChecked != true)
-                DuoToggle.IsChecked = true;
 
             _vm.InputText = "";
 

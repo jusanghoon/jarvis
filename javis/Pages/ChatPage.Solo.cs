@@ -224,7 +224,7 @@ public partial class ChatPage : Page
                 else if (intent == "stop")
                 {
                     await UiAsync(() => AppendAssistant("(solo) ��ü �����Ұ�."));
-                    await UiAsync(() => SoloToggle.IsChecked = false);
+                    await UiAsync(() => OnModeChanged(javis.ViewModels.ChatRoom.Main));
                 }
                 else
                 {
@@ -325,6 +325,13 @@ public partial class ChatPage : Page
 {Host.Persona.CoreText}
 
 {Host.Persona.SoloOverlayText}
+
+[SOLO PLAY / SELF-IMPROVEMENT MISSION]
+너는 현재 시스템의 성능과 사용자 경험을 분석하여 스스로 개선안을 도출하는 지능체다.
+새로운 스킬이나 편의 기능을 기획하고 제안하라.
+
+- 개선 제안을 만들 때는 반드시 다음 형식으로 1줄 이상 포함해라:
+  [FEAT_PROPOSAL]: (제안 내용)
 
 [CANON]
 {canonBlock}

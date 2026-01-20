@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using javis.Services;
@@ -9,6 +10,8 @@ namespace javis.ViewModels;
 
 public partial class UpdatesViewModel : ObservableObject
 {
+    public static UpdatesViewModel Instance { get; } = new();
+
     private MainAiDocSuggestionStore _store;
     private MainAiReleaseNotesStore _release;
 
@@ -33,6 +36,21 @@ public partial class UpdatesViewModel : ObservableObject
         {
             try { Refresh(); } catch { }
         };
+    }
+
+    public async Task AddUpdateAsync(string suggestion)
+    {
+        var text = (suggestion ?? string.Empty).Trim();
+        if (text.Length == 0) return;
+
+        try
+        {
+            _store.AppendSuggestion(text, source: "solo");
+            try { MainAiDocBus.PublishSuggestion(text); } catch { }
+        }
+        catch { }
+
+        try { await System.Windows.Application.Current.Dispatcher.InvokeAsync(Refresh); } catch { }
     }
 
     public ObservableCollection<MainAiDocSuggestionStore.DocSuggestionItem> DocSuggestions { get; } = new();

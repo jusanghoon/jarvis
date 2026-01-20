@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,6 +9,13 @@ namespace javis.Services.MainAi;
 
 public sealed class MainAiProfileExtractor
 {
+    public const string KeyPersonality = "user_personality";
+    public const string KeyInterests = "user_interests";
+    public const string KeyTechStack = "user_tech_stack";
+    public const string KeyEnvPref = "user_env_pref";
+
+    public static MainAiProfileExtractor Instance { get; } = new("http://localhost:11434", RuntimeSettings.Instance.AiModelName);
+
     private OllamaClient _ollama;
     private readonly string _baseUrl;
     private string _model;
@@ -141,7 +149,21 @@ JSON만 출력.
         CancellationToken ct)
     {
         var prompt = $$"""
-너는 '사용자 프로필 추출기'다.
+너는 '사용자 프로필 추출기'다. 목표는 사용자의 대화에서 아래 정보를 "추정 없이" 요약해 프로필 필드로 저장하는 것이다.
+
+[스키마 고정]
+- fields에는 아래 4개 키만 사용할 것. 다른 키를 만들지 마라.
+  - {KeyPersonality}: 사용자의 성격 및 대화 스타일
+  - {KeyInterests}: 관심 분야 및 주제
+  - {KeyTechStack}: 선호하는 프로그래밍 언어, 도구, 프레임워크
+  - {KeyEnvPref}: 선호하는 작업 환경(테마, 에디터 등)
+- sources의 키도 위 fields 키 중 일부/전체와 동일해야 한다.
+
+[추출 대상]
+- 성격(예: 꼼꼼함, 속도 중시, 보수적/공격적 등) — 사용자가 직접 드러낸 표현만
+- 관심사(도메인/업무/학습 주제)
+- 기술 스택(언어/프레임워크/도구/플랫폼)
+- 선호 환경(예: Windows/WSL, IDE, 배포/CI, 로컬 우선 등)
 
 [중요 규칙]
 - 추정/상상 금지. 사용자가 명시적으로 말한 것만 추출한다.
@@ -208,5 +230,105 @@ JSON만 출력.
         }
 
         return dict;
+    }
+
+    private static Dictionary<string, string> NormalizeToStandardKeys(Dictionary<string, string> extracted)
+    {
+        var output = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        string? personality = null;
+        string? interests = null;
+        string? tech = null;
+        string? env = null;
+
+        foreach (var (k0, v0) in extracted)
+        {
+            var k = (k0 ?? string.Empty).Trim();
+            var v = (v0 ?? string.Empty).Trim();
+            if (k.Length == 0 || v.Length == 0) continue;
+
+            var isSource = k.EndsWith("_source", StringComparison.OrdinalIgnoreCase);
+            var baseKey = isSource ? k[..^"_source".Length] : k;
+
+            static bool KeyEq(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+            string? target = null;
+
+            if (KeyEq(baseKey, KeyPersonality) || baseKey.Contains("성격", StringComparison.OrdinalIgnoreCase) || baseKey.Contains("스타일", StringComparison.OrdinalIgnoreCase))
+                target = KeyPersonality;
+            else if (KeyEq(baseKey, KeyInterests) || baseKey.Contains("관심", StringComparison.OrdinalIgnoreCase) || baseKey.Contains("주제", StringComparison.OrdinalIgnoreCase))
+                target = KeyInterests;
+            else if (KeyEq(baseKey, KeyTechStack) || baseKey.Contains("스택", StringComparison.OrdinalIgnoreCase) || baseKey.Contains("기술", StringComparison.OrdinalIgnoreCase) || baseKey.Contains("언어", StringComparison.OrdinalIgnoreCase))
+                target = KeyTechStack;
+            else if (KeyEq(baseKey, KeyEnvPref) || baseKey.Contains("환경", StringComparison.OrdinalIgnoreCase) || baseKey.Contains("에디터", StringComparison.OrdinalIgnoreCase) || baseKey.Contains("IDE", StringComparison.OrdinalIgnoreCase))
+                target = KeyEnvPref;
+
+            if (target is null)
+                continue;
+
+            var outKey = isSource ? target + "_source" : target;
+
+            if (!output.TryGetValue(outKey, out var cur) || string.IsNullOrWhiteSpace(cur))
+            {
+                output[outKey] = v;
+            }
+            else if (!cur.Contains(v, StringComparison.OrdinalIgnoreCase))
+            {
+                // merge with simple delimiter
+                output[outKey] = (cur + " / " + v).Trim();
+            }
+        }
+
+        // keep only 4 fixed keys (+ their sources)
+        return output;
+    }
+
+    public async Task AnalyzeAndUpdateProfileAsync(string currentChatHistory, CancellationToken ct = default)
+    {
+        var history = (currentChatHistory ?? string.Empty).Trim();
+        if (history.Length == 0) return;
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
+
+        try
+        {
+            var svc = UserProfileService.Instance;
+            var profile = svc.TryGetActiveProfile();
+            if (profile == null) return;
+
+            var extracted = await ExtractSafeAsync(
+                lastUserMessage: "[대화 내역]\n" + history,
+                existingReportText: profile.ToReportText(includeSources: true),
+                ct: timeoutCts.Token);
+
+            if (extracted.Count == 0) return;
+
+            extracted = MainAiFieldPolicy.Apply(extracted);
+            extracted = NormalizeToStandardKeys(extracted);
+
+            if (extracted.Count == 0) return;
+
+            var changed = new List<string>();
+            foreach (var kv in extracted)
+            {
+                svc.UpdateField(kv.Key, kv.Value);
+                changed.Add(kv.Key);
+            }
+
+            if (changed.Count > 0)
+            {
+                Debug.WriteLine($"사용자 프로필 자동 업데이트 완료: {string.Join(", ", changed)}");
+                try
+                {
+                    javis.App.Kernel?.Logger?.Log("profile.auto.updated", new { fields = changed.ToArray() });
+                }
+                catch { }
+            }
+        }
+        catch
+        {
+            // ignore
+        }
     }
 }

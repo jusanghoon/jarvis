@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
@@ -25,7 +26,10 @@ public sealed class OllamaClient
 
     public async Task<string> GenerateAsync(string prompt, CancellationToken ct)
     {
-        using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/api/generate")
+        var requestUrl = $"{_baseUrl.TrimEnd('/')}/api/generate";
+        Debug.WriteLine($"[Ollama] Final URL: {requestUrl}");
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, requestUrl)
         {
             Content = new StringContent(
                 JsonSerializer.Serialize(new { model = _model, prompt, stream = false }),

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
@@ -14,7 +15,7 @@ public sealed class OllamaChatService
     private readonly HttpClient _http;
     private readonly string _baseUrl;
 
-    public OllamaChatService(string baseUrl = "http://localhost:11434/api")
+    public OllamaChatService(string baseUrl = "http://localhost:11434")
     {
         _baseUrl = baseUrl.TrimEnd('/');
         _http = new HttpClient();
@@ -26,7 +27,8 @@ public sealed class OllamaChatService
         bool think,
         [EnumeratorCancellation] CancellationToken ct)
     {
-        var url = $"{_baseUrl}/chat";
+        var requestUrl = $"{_baseUrl.TrimEnd('/')}/api/chat";
+        Debug.WriteLine($"[Ollama] Final URL: {requestUrl}");
 
         var req = new OllamaChatRequest
         {
@@ -36,7 +38,7 @@ public sealed class OllamaChatService
             Think = think ? (object)true : null
         };
 
-        using var httpReq = new HttpRequestMessage(HttpMethod.Post, url)
+        using var httpReq = new HttpRequestMessage(HttpMethod.Post, requestUrl)
         {
             Content = new StringContent(JsonSerializer.Serialize(req, JsonOpts), Encoding.UTF8, "application/json")
         };

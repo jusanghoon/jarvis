@@ -11,5 +11,7 @@ public sealed class CalendarTodoItem
     public string Title { get; set; } = "";
     public string? Notes { get; set; }
 
+    public string? Location { get; set; }
+
     public bool IsDone { get; set; }
 }

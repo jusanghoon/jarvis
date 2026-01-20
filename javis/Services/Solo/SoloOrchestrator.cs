@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using javis.ViewModels;
 
 namespace javis.Services.Solo;
 
@@ -11,6 +13,8 @@ public sealed class SoloOrchestrator : IAsyncDisposable
 
     private readonly ISoloUiSink _ui;
     private readonly ISoloBackend _backend;
+
+    public string ModelName { get; set; } = javis.Services.RuntimeSettings.Instance.AiModelName;
 
     private readonly Channel<SoloTurnInput> _inbox = Channel.CreateUnbounded<SoloTurnInput>(new UnboundedChannelOptions
     {
@@ -25,6 +29,8 @@ public sealed class SoloOrchestrator : IAsyncDisposable
     private Task? _loopTask;
 
     private long _lastProcessedUserMsgId = -1;
+
+    private static readonly Regex FeatProposal = new(@"\[FEAT_PROPOSAL\]\s*:\s*(?<t>.+)$", RegexOptions.Compiled | RegexOptions.Multiline);
 
     public bool IsRunning => _loopTask is { IsCompleted: false };
     public SoloState State { get; private set; } = SoloState.Off;
@@ -148,7 +154,10 @@ public sealed class SoloOrchestrator : IAsyncDisposable
             {
                 var reply = await _backend.RunSoloTurnAsync(input, ct).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(reply))
+                {
+                    TryHandleSoloProposal(reply);
                     _ui.PostAssistant(reply);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -165,5 +174,29 @@ public sealed class SoloOrchestrator : IAsyncDisposable
     {
         await StopAsync().ConfigureAwait(false);
         _lifecycleGate.Dispose();
+    }
+
+    private static void TryHandleSoloProposal(string reply)
+    {
+        try
+        {
+            var m = FeatProposal.Match(reply ?? string.Empty);
+            if (!m.Success) return;
+
+            var text = (m.Groups["t"].Value ?? string.Empty).Trim();
+            if (text.Length == 0) return;
+
+            _ = UpdatesViewModel.Instance.AddUpdateAsync(text);
+
+            try
+            {
+                javis.App.Kernel?.Logger?.LogText("solo.self_reflection", $"자아 성찰 결과: {text}");
+            }
+            catch { }
+        }
+        catch
+        {
+            // ignore
+        }
     }
 }
