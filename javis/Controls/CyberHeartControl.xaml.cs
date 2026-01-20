@@ -14,6 +14,8 @@ public partial class CyberHeartControl : UserControl
 
     private float _thinkingT = 0f; // 0..1 (smooth transition)
 
+    private float _flashT = 0f; // 0..1 (decays)
+
     private readonly SKColor _baseColorNormal = SKColors.Cyan;
     private readonly SKColor _baseColorThinking = SKColors.Purple;
 
@@ -38,6 +40,12 @@ public partial class CyberHeartControl : UserControl
 
     public void SetThinkingMode(bool isThinking) => IsThinking = isThinking;
 
+    public void Flash()
+    {
+        _flashT = 1f;
+        SkiaCanvas?.InvalidateVisual();
+    }
+
     private static void OnIsThinkingChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is CyberHeartControl c)
@@ -59,6 +67,9 @@ public partial class CyberHeartControl : UserControl
             var target = IsThinking ? 1f : 0f;
             _thinkingT += (target - _thinkingT) * 0.08f;
 
+            _flashT *= 0.84f;
+            if (_flashT < 0.001f) _flashT = 0f;
+
             SkiaCanvas.InvalidateVisual();
         };
 
@@ -76,9 +87,10 @@ public partial class CyberHeartControl : UserControl
         float baseRadius = Math.Min(info.Width, info.Height) / 3f;
 
         float breathingFactor = (MathF.Sin(_cycle) + 1f) / 2f;
-        float currentRadius = baseRadius + (breathingFactor * 10f);
+        float currentRadius = baseRadius + (breathingFactor * 10f) + (_flashT * 6f);
 
         var targetColor = Lerp(_baseColorNormal, _baseColorThinking, _thinkingT);
+        var flashColor = Lerp(targetColor, SKColors.White, _flashT);
 
         using (var paint = new SKPaint())
         {
@@ -86,7 +98,7 @@ public partial class CyberHeartControl : UserControl
             paint.Shader = SKShader.CreateRadialGradient(
                 new SKPoint(centerX, centerY),
                 currentRadius * 1.5f,
-                new[] { targetColor.WithAlpha(150), targetColor.WithAlpha(0) },
+                new[] { flashColor.WithAlpha((byte)(150 + (_flashT * 60f))), flashColor.WithAlpha(0) },
                 new[] { 0.0f, 1.0f },
                 SKShaderTileMode.Clamp);
 
@@ -96,9 +108,9 @@ public partial class CyberHeartControl : UserControl
         using (var paint = new SKPaint())
         {
             paint.IsAntialias = true;
-            paint.Color = targetColor.WithAlpha(200);
+            paint.Color = flashColor.WithAlpha((byte)(200 + (_flashT * 55f)));
             paint.Style = SKPaintStyle.Stroke;
-            paint.StrokeWidth = 5;
+            paint.StrokeWidth = 5 + (_flashT * 2f);
 
             canvas.Save();
             canvas.RotateDegrees(_cycle * 20f, centerX, centerY);

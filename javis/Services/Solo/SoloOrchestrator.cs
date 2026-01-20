@@ -7,12 +7,19 @@ using javis.ViewModels;
 
 namespace javis.Services.Solo;
 
+public interface ISoloTokenStreamSource
+{
+    event Action<string>? OnTokenReceived;
+}
+
 public sealed class SoloOrchestrator : IAsyncDisposable
 {
     public enum SoloState { Off, AwaitingStart, Running }
 
     private readonly ISoloUiSink _ui;
     private readonly ISoloBackend _backend;
+
+    public event Action<string>? OnTokenReceived;
 
     public string ModelName { get; set; } = javis.Services.RuntimeSettings.Instance.AiModelName;
 
@@ -39,6 +46,14 @@ public sealed class SoloOrchestrator : IAsyncDisposable
     {
         _ui = ui;
         _backend = backend;
+
+        if (_backend is ISoloTokenStreamSource src)
+        {
+            src.OnTokenReceived += t =>
+            {
+                try { OnTokenReceived?.Invoke(t); } catch { }
+            };
+        }
     }
 
     public async Task StartAsync()

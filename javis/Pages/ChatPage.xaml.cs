@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using Jarvis.Core.Archive;
 using javis.Services;
@@ -22,6 +23,7 @@ public partial class ChatPage : Page
     private const bool UseSoloOrchestrator = true;
 
     private SoloOrchestrator? _soloOrch;
+    private ChatPageSoloBackendAdapter? _soloOrchBackend;
     private long _nextUserMsgId;
 
     // DUO run cancellation (prevents late debate completion after switching pages)
@@ -98,6 +100,11 @@ public partial class ChatPage : Page
 
         _vm.ScrollToEndRequested += ScrollToEnd;
 
+        // Hard force scroll-to-bottom for any room when new messages arrive.
+        _vm.MainMessages.CollectionChanged += (_, __) => ScrollToBottomHard();
+        _vm.SoloMessages.CollectionChanged += (_, __) => ScrollToBottomHard();
+        _vm.DuoMessages.CollectionChanged += (_, __) => ScrollToBottomHard();
+
         Loaded += ChatPage_Loaded;
         Unloaded += ChatPage_Unloaded;
         IsVisibleChanged += ChatPage_IsVisibleChanged;
@@ -105,6 +112,23 @@ public partial class ChatPage : Page
         UserReloadBus.ActiveUserChanged += OnActiveUserChanged;
 
         _vm.ForceThinkingRequested += OnForceThinkingRequested;
+    }
+
+    private void ScrollToBottomHard()
+    {
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            try
+            {
+                if (ChatList == null) return;
+                if (ChatList.Items.Count == 0) return;
+                ChatList.UpdateLayout();
+                ChatList.ScrollIntoView(ChatList.Items[^1]);
+                ChatList.UpdateLayout();
+                ChatList.ScrollIntoView(ChatList.Items[^1]);
+            }
+            catch { }
+        }, DispatcherPriority.Loaded);
     }
 
     private void OnForceThinkingRequested()
@@ -260,10 +284,32 @@ public partial class ChatPage : Page
                 vm.ThinkingStage = GuessThinkingStage(t);
             });
 
-        var backend = new ChatPageSoloBackendAdapter(SoloProcessOneTurnAsync);
-        _soloOrch = new SoloOrchestrator(sink, backend)
+        _soloOrchBackend = new ChatPageSoloBackendAdapter(SoloProcessOneTurnAsync);
+        _soloOrch = new SoloOrchestrator(sink, _soloOrchBackend)
         {
             ModelName = "gemma3:4b"
+        };
+
+        // Solo live stream: show the sentence being generated and flash the heart per token.
+        var streamSb = new System.Text.StringBuilder();
+        _soloOrch.OnTokenReceived += token =>
+        {
+            _ = UiAsync(() =>
+            {
+                if (string.IsNullOrEmpty(token)) return;
+                // newline token can be used as "reset" from the backend
+                if (token == "\n")
+                    streamSb.Clear();
+                else
+                    streamSb.Append(token);
+
+                var s = streamSb.ToString();
+                if (s.Length > 240)
+                    s = s.Substring(s.Length - 240);
+
+                ((ChatViewModel)DataContext).ThinkingStage = s.Length == 0 ? "[데이터 분석 중...]" : s;
+                try { SoloHeart?.Flash(); } catch { }
+            });
         };
     }
 

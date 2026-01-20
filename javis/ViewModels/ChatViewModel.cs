@@ -169,6 +169,41 @@ public partial class ChatViewModel : ObservableObject
     private void ForceThinking()
         => ForceThinkingRequested?.Invoke();
 
+    // explicit SOLO start command (used by the overlay button)
+    [ObservableProperty] private bool _isSoloThinkingStarting;
+    [ObservableProperty] private string _startSoloThinkingButtonText = "즉시 사유 시작";
+
+    public bool CanStartSoloThinking => !_isSoloThinkingStarting;
+
+    [RelayCommand(CanExecute = nameof(CanStartSoloThinking))]
+    private Task StartSoloThinkingAsync()
+    {
+        if (!CanStartSoloThinking) return Task.CompletedTask;
+
+        IsSoloThinkingStarting = true;
+        StartSoloThinkingButtonText = "뇌 가동 중...";
+
+        try { StartSoloThinkingCommand.NotifyCanExecuteChanged(); } catch { }
+
+        try
+        {
+            // ChatPage owns the actual SoloOrchestrator instance; route the request via existing event.
+            ForceThinkingRequested?.Invoke();
+        }
+        catch
+        {
+            // best-effort
+        }
+        finally
+        {
+            StartSoloThinkingButtonText = "즉시 사유 시작";
+            IsSoloThinkingStarting = false;
+            try { StartSoloThinkingCommand.NotifyCanExecuteChanged(); } catch { }
+        }
+
+        return Task.CompletedTask;
+    }
+
     public bool Think { get; set; } = false;
 
     public event Action? ScrollToEndRequested;

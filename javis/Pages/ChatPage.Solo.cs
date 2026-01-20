@@ -98,7 +98,17 @@ public partial class ChatPage : Page
 
                     try { javis.App.Kernel?.Logger?.Log("solo.llm.request", new { idle, track }); } catch { }
 
-                    var raw = await Llm.GenerateAsync(prompt, ct2);
+                    // stream tokens to overlay (best-effort) while building a complete response for JSON extraction
+                    var sb = new System.Text.StringBuilder();
+                    try { _soloOrchBackend?.EmitToken("\n"); } catch { }
+
+                    await foreach (var chunk in Llm.StreamGenerateAsync(prompt, ct2))
+                    {
+                        sb.Append(chunk);
+                        try { _soloOrchBackend?.EmitToken(chunk); } catch { }
+                    }
+
+                    var raw = sb.ToString();
                     json = JsonUtil.ExtractFirstJsonObject(raw);
                 }
 
