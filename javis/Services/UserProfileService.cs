@@ -4,6 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
+using javis.Services.Device;
+using Jarvis.Core.Archive;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace javis.Services;
 
@@ -226,6 +230,55 @@ public sealed partial class UserProfileService : ObservableObject
 
     private sealed record ActiveUserState(string ActiveUserId);
 
+    public async Task UpdateDeviceContextAsync(AuditLogger? logger = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var snap = DeviceDiagnosticsCollector.CaptureBestEffort();
+            var deviceId = (snap.Fingerprint?.DeviceId ?? "unknown").Trim();
+            if (deviceId.Length == 0) deviceId = "unknown";
+
+            var profile = TryGetActiveProfile();
+            if (profile is null) return;
+
+            var map = profile.DeviceDiagnosticsById is null
+                ? new Dictionary<string, DeviceDiagnosticsSnapshot>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, DeviceDiagnosticsSnapshot>(profile.DeviceDiagnosticsById, StringComparer.OrdinalIgnoreCase);
+
+            map[deviceId] = snap;
+
+            var next = profile with
+            {
+                LastDeviceDiagnostics = snap,
+                DeviceDiagnosticsById = map
+            };
+
+            SaveProfile(next);
+
+            try
+            {
+                var store = new DeviceDiagnosticsStore(ActiveUserDataDir);
+                store.SaveLatest(snap);
+            }
+            catch { }
+
+            try
+            {
+                logger?.Log("device.context.updated", new { deviceId });
+                logger?.Log($"장치 환경 인식 완료: {deviceId}", new { deviceId });
+            }
+            catch { }
+        }
+        catch
+        {
+            // best-effort: do not throw
+        }
+
+        await Task.CompletedTask.ConfigureAwait(false);
+    }
+
     public Dictionary<string, string> BuildDraftFieldsFromHistory(int maxSessions = 80, int maxCharsPerMsg = 400)
     {
         var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -395,6 +448,10 @@ public sealed partial class UserProfileService : ObservableObject
 public sealed record UserProfile(string Id, string DisplayName, DateTimeOffset CreatedAt)
 {
     public Dictionary<string, string> Fields { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public DeviceDiagnosticsSnapshot? LastDeviceDiagnostics { get; init; }
+
+    public Dictionary<string, DeviceDiagnosticsSnapshot> DeviceDiagnosticsById { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     private static bool IsSourceKey(string key)
         => key.EndsWith("_source", StringComparison.OrdinalIgnoreCase);

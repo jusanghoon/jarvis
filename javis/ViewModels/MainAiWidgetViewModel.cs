@@ -1,12 +1,16 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Jarvis.Core.System;
 using javis.Models;
+using javis.Services;
+using javis.Services.SystemActions;
 using javis.Services.MainAi;
 
 namespace javis.ViewModels;
@@ -22,6 +26,12 @@ public partial class MainAiWidgetViewModel : ObservableObject
     private readonly MainAiFileRelevanceStore _relevance;
 
     private CancellationTokenSource? _askCts;
+
+    private readonly IntentResolver _intentResolver = new();
+
+    private string? _pendingFollowUpIntent;
+
+    private string _lastToolFeedback = "";
 
     // 자동 피드백(b): 같은 태그로 연속 질문하면 직전 선택을 실패로 간주
     private string[] _lastTags = Array.Empty<string>();
@@ -228,7 +238,61 @@ public partial class MainAiWidgetViewModel : ObservableObject
 
         try
         {
-            var raw = await _help.AnswerAsync(q, _codeIndex, _askCts.Token);
+            // If the previous turn requested missing fields, try to learn from the user's answer first.
+            if (!string.IsNullOrWhiteSpace(_pendingFollowUpIntent) &&
+                _intentResolver.TryLearnFromUserText(q, out var updates) &&
+                updates.Count > 0)
+            {
+                try
+                {
+                    var svc = UserProfileService.Instance;
+                    var p = svc.TryGetActiveProfile();
+                    if (p != null)
+                    {
+                        var merged = new System.Collections.Generic.Dictionary<string, string>(p.Fields, StringComparer.OrdinalIgnoreCase);
+                        foreach (var kv in updates) merged[kv.Key] = kv.Value;
+                        svc.SaveProfile(p with { Fields = merged });
+                    }
+                }
+                catch { }
+
+                // Re-run the original intent using the same user message now that profile is updated.
+                try
+                {
+                    var kernel = javis.App.Kernel;
+                    if (kernel != null)
+                    {
+                        var r2 = await _intentResolver.TryResolveAsync(_pendingFollowUpIntent, UserProfileService.Instance, kernel.SystemActions, _askCts.Token);
+                        if (r2.Handled)
+                        {
+                            if (r2.Execution is ExecutionResult ex2)
+                                _lastToolFeedback = BuildToolFeedback(ex2);
+
+                            try
+                            {
+                                var p = UserProfileService.Instance.TryGetActiveProfile();
+                                var deviceId = p?.LastDeviceDiagnostics?.Fingerprint?.DeviceId ?? "unknown";
+                                var userId = p?.Id ?? UserProfileService.Instance.ActiveUserId;
+                                kernel.Logger.Log(r2.AuditKind ?? "system.intent", new { userId, deviceId, msg = _pendingFollowUpIntent, audit = r2.AuditPayload, success = r2.Execution?.Success, error = r2.Execution?.Error });
+                            }
+                            catch { }
+
+                            _pendingFollowUpIntent = r2.NeedsUserInput ? _pendingFollowUpIntent : null;
+                            pending.Text = string.IsNullOrWhiteSpace(r2.ReplyText) ? "(응답이 비어있음)" : r2.ReplyText;
+                            AnswerText = pending.Text;
+                            return;
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            var qWithFeedback = string.IsNullOrWhiteSpace(_lastToolFeedback)
+                ? q
+                : $"{q}\n\n[시스템 실행 결과]\n{_lastToolFeedback}";
+
+            var raw = await _help.AnswerAsync(qWithFeedback, _codeIndex, _askCts.Token);
+            Debug.WriteLine($"[MainAI][RawResponse]\n{raw}");
             var json = javis.Services.JsonUtil.ExtractFirstJsonObject(raw);
 
             JaeminIntent? env = null;
@@ -246,6 +310,42 @@ public partial class MainAiWidgetViewModel : ObservableObject
 
             var intent = (env?.Intent ?? "say").Trim().ToLowerInvariant();
             var text = (env?.Text ?? "").Trim();
+
+            // Profile-based system intent resolution (e.g., "프로젝트 열어줘")
+            try
+            {
+                var kernel = javis.App.Kernel;
+                if (kernel != null)
+                {
+                    var sysRes = await _intentResolver.TryResolveAsync(q, UserProfileService.Instance, kernel.SystemActions, _askCts.Token);
+                    if (sysRes.Handled)
+                    {
+                        if (sysRes.Execution is ExecutionResult ex)
+                            _lastToolFeedback = BuildToolFeedback(ex);
+
+                        try
+                        {
+                            var p = UserProfileService.Instance.TryGetActiveProfile();
+                            var deviceId = p?.LastDeviceDiagnostics?.Fingerprint?.DeviceId ?? "unknown";
+                            var userId = p?.Id ?? UserProfileService.Instance.ActiveUserId;
+                            kernel.Logger.Log(sysRes.AuditKind ?? "system.intent", new { userId, deviceId, msg = q, audit = sysRes.AuditPayload, success = sysRes.Execution?.Success, error = sysRes.Execution?.Error });
+                        }
+                        catch { }
+
+                        if (sysRes.NeedsUserInput)
+                            _pendingFollowUpIntent = q;
+                        else
+                            _pendingFollowUpIntent = null;
+
+                        pending.Text = string.IsNullOrWhiteSpace(sysRes.ReplyText) ? "(응답이 비어있음)" : sysRes.ReplyText;
+                        AnswerText = pending.Text;
+                        return;
+                    }
+
+                    kernel.Logger.Log("intent.resolve.failed", new { msg = $"해석 실패: {q}", rawResponse = raw });
+                }
+            }
+            catch { }
 
             if (intent == "read_code")
             {
@@ -425,5 +525,15 @@ public partial class MainAiWidgetViewModel : ObservableObject
             try { _askCts?.Dispose(); } catch { }
             _askCts = null;
         }
+    }
+
+    private static string BuildToolFeedback(ExecutionResult ex)
+    {
+        if (ex.RequiresConfirmation)
+            return "RequiresConfirmation: " + (ex.ConfirmationPrompt ?? "confirmation required");
+
+        return ex.Success
+            ? "Success"
+            : "Failed: " + (ex.Error ?? "unknown error");
     }
 }

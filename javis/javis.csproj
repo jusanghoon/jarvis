@@ -17,6 +17,8 @@
 
   <ItemGroup>
     <Compile Include="..\Jarvis.Core\Archive\FossilQueryService.cs" Link="Core\Archive\FossilQueryService.cs" />
+    <Compile Include="..\Jarvis.Core\System\ExecutionResult.cs" Link="Core\System\ExecutionResult.cs" />
+    <Compile Include="..\Jarvis.Core\System\SystemActionExecutor.cs" Link="Core\System\SystemActionExecutor.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -10,7 +10,6 @@ public sealed class MainAiOrchestrator : IDisposable
 {
     public static MainAiOrchestrator Instance { get; } = new();
 
-    private const string MainAiModel = "qwen3:4b";
     private const string OllamaBaseUrl = "http://localhost:11434";
 
     private static readonly TimeSpan MainAiWorkTimeout = TimeSpan.FromSeconds(18);
@@ -41,7 +40,7 @@ public sealed class MainAiOrchestrator : IDisposable
 
     private MainAiOrchestrator()
     {
-        _extractor = new MainAiProfileExtractor(OllamaBaseUrl, MainAiModel);
+        _extractor = new MainAiProfileExtractor(OllamaBaseUrl, RuntimeSettings.Instance.AiModelName);
     }
 
     public void Start()
@@ -167,7 +166,7 @@ public sealed class MainAiOrchestrator : IDisposable
 
         if (changed.Count == 0) return;
 
-        merged["main_ai_model"] = MainAiModel;
+        merged["main_ai_model"] = RuntimeSettings.Instance.AiModelName;
         svc.SaveProfile(p with { Fields = merged });
 
         try { MainAiChangeLog.Append(p.Id, kind, changed); } catch { }

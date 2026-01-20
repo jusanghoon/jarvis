@@ -22,6 +22,7 @@ public static class RuntimeSettingsStore
     private sealed class Dto
     {
         public string? Model { get; set; }
+        public string? AiModelName { get; set; }
         public string? MainAiName { get; set; }
         public bool? HomeRightPanelEnabled { get; set; }
         public double? UiScale { get; set; }
@@ -44,6 +45,9 @@ public static class RuntimeSettingsStore
 
             if (!string.IsNullOrWhiteSpace(dto.Model))
                 settings.Model = dto.Model;
+
+            if (!string.IsNullOrWhiteSpace(dto.AiModelName))
+                settings.AiModelName = dto.AiModelName;
 
             if (!string.IsNullOrWhiteSpace(dto.MainAiName))
                 settings.MainAiName = dto.MainAiName;
@@ -80,6 +84,7 @@ public static class RuntimeSettingsStore
             var dto = new Dto
             {
                 Model = settings.Model,
+                AiModelName = settings.AiModelName,
                 MainAiName = settings.MainAiName,
                 HomeRightPanelEnabled = settings.HomeRightPanelEnabled,
                 UiScale = settings.UiScale,

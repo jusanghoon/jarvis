@@ -190,7 +190,7 @@ public sealed class FossilQueryService
 
         foreach (var path in Directory.EnumerateFiles(logsDir, "audit-*.jsonl"))
         {
-            var name = System.IO.Path.GetFileNameWithoutExtension(path);
+            var name = Path.GetFileNameWithoutExtension(path);
             if (name.Length < "audit-YYYY-MM-DD".Length) continue;
 
             var datePart = name.Substring("audit-".Length);

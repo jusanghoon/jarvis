@@ -7,15 +7,32 @@ namespace javis.Services.MainAi;
 
 public sealed class MainAiHelpResponder
 {
-    private readonly OllamaClient _ollama;
+    private OllamaClient _ollama;
+    private readonly string _baseUrl;
+    private string _model;
 
     public MainAiHelpResponder(string baseUrl, string model)
     {
-        _ollama = new OllamaClient(baseUrl, model);
+        _baseUrl = baseUrl;
+        _model = (model ?? "").Trim();
+        if (_model.Length == 0) _model = "gemma3:4b";
+        _ollama = new OllamaClient(_baseUrl, _model);
+    }
+
+    private void RefreshModelIfChanged()
+    {
+        var desired = (RuntimeSettings.Instance.AiModelName ?? "").Trim();
+        if (desired.Length == 0) return;
+        if (string.Equals(desired, _model, StringComparison.OrdinalIgnoreCase)) return;
+
+        _model = desired;
+        _ollama = new OllamaClient(_baseUrl, _model);
     }
 
     public async Task<string> AnswerAsync(string userQuestion, string codeIndexText, CancellationToken ct)
     {
+        RefreshModelIfChanged();
+
         userQuestion = (userQuestion ?? "").Trim();
         if (userQuestion.Length == 0) return "";
 

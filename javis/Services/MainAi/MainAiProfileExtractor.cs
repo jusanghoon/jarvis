@@ -8,11 +8,26 @@ namespace javis.Services.MainAi;
 
 public sealed class MainAiProfileExtractor
 {
-    private readonly OllamaClient _ollama;
+    private OllamaClient _ollama;
+    private readonly string _baseUrl;
+    private string _model;
 
     public MainAiProfileExtractor(string baseUrl, string model)
     {
-        _ollama = new OllamaClient(baseUrl, model);
+        _baseUrl = baseUrl;
+        _model = (model ?? "").Trim();
+        if (_model.Length == 0) _model = "gemma3:4b";
+        _ollama = new OllamaClient(_baseUrl, _model);
+    }
+
+    private void RefreshModelIfChanged()
+    {
+        var desired = (RuntimeSettings.Instance.AiModelName ?? "").Trim();
+        if (desired.Length == 0) return;
+        if (string.Equals(desired, _model, StringComparison.OrdinalIgnoreCase)) return;
+
+        _model = desired;
+        _ollama = new OllamaClient(_baseUrl, _model);
     }
 
     public async Task<Dictionary<string, string>> ExtractSafeAsync(
@@ -20,6 +35,8 @@ public sealed class MainAiProfileExtractor
         string existingReportText,
         CancellationToken ct)
     {
+        RefreshModelIfChanged();
+
         try
         {
             var r = await ExtractAsync(lastUserMessage, existingReportText, ct);

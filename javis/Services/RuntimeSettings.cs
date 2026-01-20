@@ -12,6 +12,9 @@ public sealed partial class RuntimeSettings : ObservableObject
     private string _model = "gemma3:1b";
 
     [ObservableProperty]
+    private string _aiModelName = "gemma3:4b";
+
+    [ObservableProperty]
     private string _mainAiName = "재민";
 
     [ObservableProperty]

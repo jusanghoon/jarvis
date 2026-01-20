@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text;
 using Jarvis.Core.Archive;
+using Jarvis.Core.System;
 
 namespace javis.Services;
 
@@ -24,6 +25,8 @@ public sealed class JarvisKernel
 
     public SkillService Skills { get; } = SkillService.Instance;
 
+    public ISystemActionExecutor SystemActions { get; }
+
     public VaultManager Vault { get; }
     public VaultIndexManager VaultIndex { get; }
 
@@ -37,7 +40,14 @@ public sealed class JarvisKernel
     public DailyObservationNotes PersonalDailyNotes { get; private set; }
 
     public JarvisKernel()
+        : this(new SystemActionExecutor())
     {
+    }
+
+    public JarvisKernel(ISystemActionExecutor systemActions)
+    {
+        SystemActions = systemActions ?? throw new ArgumentNullException(nameof(systemActions));
+
         DataDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Jarvis");
@@ -53,6 +63,7 @@ public sealed class JarvisKernel
         Logger = new AuditLogger(LogsDir);
         Logger.PruneOldLogs(keepDays: 30);
         Logger.Log("app.start", new { tfm = "net10.0-windows" });
+        try { Logger.Log("ai.model", new { model = RuntimeSettings.Instance.AiModelName }); } catch { }
 
         Archive = new ArchiveStore(Logger);
         Archive.Record(
@@ -123,6 +134,8 @@ public sealed class JarvisKernel
     {
         DefaultAssets.EnsureDefaultMathPlugin(PluginsDir);
         DefaultAssets.EnsureDefaultCalculatorSkill(SkillsDir);
+
+        try { _ = UserProfileService.Instance.UpdateDeviceContextAsync(Logger); } catch { }
 
         Plugins.LoadAll();
     }
