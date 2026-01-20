@@ -49,7 +49,7 @@ public partial class SkillsViewModel : ObservableObject
         if (m.Type == "prompt")
         {
             var text = m.Prompt ?? m.Description ?? m.Name;
-            ChatBus.Send(text);
+            ChatBus.Send(text ?? string.Empty);
             NavigateToChatRequested?.Invoke();
             return;
         }

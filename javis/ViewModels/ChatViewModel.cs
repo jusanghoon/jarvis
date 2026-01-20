@@ -47,7 +47,6 @@ public partial class ChatViewModel : ObservableObject
         };
 
         // Main chat assistant is the app's general assistant (Jarvis), independent from the right-panel persona.
-        const string aiName = "Jarvis";
         var hello = "온라인. 무엇을 도와줄까?";
 
         _history.Add(new OllamaMessage("system",
@@ -129,6 +128,19 @@ public partial class ChatViewModel : ObservableObject
             _selectedRoom = value;
             OnPropertyChanged(nameof(SelectedRoom));
             OnPropertyChanged(nameof(MessagesView));
+
+            if (value == ChatRoom.Solo && !IsSoloThinkingStarting)
+            {
+                try
+                {
+                    if (StartSoloThinkingCommand.CanExecute(null))
+                        StartSoloThinkingCommand.Execute(null);
+                }
+                catch
+                {
+                    // best-effort
+                }
+            }
         }
     }
 
@@ -173,12 +185,19 @@ public partial class ChatViewModel : ObservableObject
     [ObservableProperty] private bool _isSoloThinkingStarting;
     [ObservableProperty] private string _startSoloThinkingButtonText = "즉시 사유 시작";
 
-    public bool CanStartSoloThinking => !_isSoloThinkingStarting;
+    public bool CanStartSoloThinking => !IsSoloThinkingStarting;
 
     [RelayCommand(CanExecute = nameof(CanStartSoloThinking))]
     private Task StartSoloThinkingAsync()
     {
         if (!CanStartSoloThinking) return Task.CompletedTask;
+
+        // reset overlay state immediately
+        ThinkingStage = "";
+        ThinkingProgress = "";
+
+        if (SelectedRoom != ChatRoom.Solo)
+            SelectedRoom = ChatRoom.Solo;
 
         IsSoloThinkingStarting = true;
         StartSoloThinkingButtonText = "뇌 가동 중...";
@@ -483,7 +502,7 @@ public partial class ChatViewModel : ObservableObject
 
             try
             {
-                var canon = javis.App.Kernel.PersonalCanon.BuildPromptBlock(query: text, maxItems: 6);
+                var canon = javis.App.Kernel?.PersonalCanon?.BuildPromptBlock(query: text, maxItems: 6) ?? string.Empty;
                 context.Add(new OllamaMessage("system", "[CANON]\n" + canon));
             }
             catch { }

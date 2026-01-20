@@ -236,11 +236,6 @@ JSON만 출력.
     {
         var output = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        string? personality = null;
-        string? interests = null;
-        string? tech = null;
-        string? env = null;
-
         foreach (var (k0, v0) in extracted)
         {
             var k = (k0 ?? string.Empty).Trim();

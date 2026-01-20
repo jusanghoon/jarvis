@@ -117,7 +117,7 @@ public partial class ChatPage : Page
         try
         {
             javis.App.Kernel?.Archive.Record(
-                content: _vm.InputText,
+                content: _vm.InputText ?? string.Empty,
                 role: GEMSRole.Connectors,
                 state: KnowledgeState.Active,
                 sessionId: javis.App.Kernel?.Logger?.SessionId,

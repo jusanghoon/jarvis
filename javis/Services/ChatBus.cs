@@ -22,5 +22,5 @@ public static class ChatBus
         }
     }
 
-    public static bool TryDequeue(out string text) => _queue.TryDequeue(out text);
+    public static bool TryDequeue(out string text) => _queue.TryDequeue(out text!);
 }

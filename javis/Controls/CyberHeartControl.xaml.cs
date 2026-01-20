@@ -78,6 +78,7 @@ public partial class CyberHeartControl : UserControl
 
     private void OnPaintSurface(object sender, SKPaintSurfaceEventArgs e)
     {
+        System.Diagnostics.Debug.WriteLine("Heart is beating...");
         var canvas = e.Surface.Canvas;
         var info = e.Info;
         canvas.Clear(SKColors.Transparent);

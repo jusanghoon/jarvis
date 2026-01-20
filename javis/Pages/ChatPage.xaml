@@ -5,6 +5,7 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:models="clr-namespace:javis.Models"
       xmlns:javis="clr-namespace:javis.ViewModels"
+      xmlns:local="clr-namespace:javis.Pages"
       xmlns:controls="clr-namespace:javis.Controls"
       mc:Ignorable="d"
       Background="Transparent">
@@ -40,39 +41,7 @@
                     Visibility="Collapsed"/>
         </DockPanel>
 
-        <!-- (A2) Topic command bar -->
-        <Border Grid.Row="1" Margin="0,0,0,6">
-            <Border.Style>
-                <Style TargetType="Border" BasedOn="{StaticResource SubCardBorderStyle}">
-                    <Setter Property="Visibility" Value="Visible"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding SelectedRoom}" Value="Solo">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </Border.Style>
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Text="주제" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="0,0,10,0" FontSize="14"/>
-
-                <TextBox x:Name="TopicBox"
-                         Grid.Column="1"
-                         Style="{StaticResource PastelInputTextBox}"
-                         Height="38"
-                         Padding="6,2"
-                         Text="{Binding Topic, UpdateSourceTrigger=PropertyChanged}"
-                         KeyDown="TopicBox_KeyDown" />
-
-                <Button Grid.Column="2" Content="적용" Margin="10,0,0,0" MinWidth="70" Height="38" Click="ApplyTopic_Click"
-                        Background="{StaticResource AccentBrush}" Foreground="White" BorderBrush="{StaticResource AccentBrush}"/>
-            </Grid>
-        </Border>
+        <!-- (A2) Topic command bar removed -->
 
         <!-- (A3) Status badge row (mode) -->
         <Border Grid.Row="2" Style="{StaticResource SubCardBorderStyle}" Margin="0,0,0,6">
@@ -112,7 +81,7 @@
         </Border>
 
         <!-- (B) Messages area -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="2" x:Name="MessagesArea">
             <Grid>
                 <Border x:Name="ChatHistoryHost" CornerRadius="18" BorderThickness="1" BorderBrush="{StaticResource CardBorder}" Padding="10">
                 <Border.Style>
@@ -248,7 +217,9 @@
                 </Border>
 
                 <!-- Solo overlay view -->
-                <Border x:Name="SoloOverlay" Grid.Row="1" CornerRadius="18" Background="#082E1A47" BorderBrush="#558A2BE2" BorderThickness="1" Padding="18" IsHitTestVisible="False">
+                <Border x:Name="SoloOverlay" Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="999"
+                        IsHitTestVisible="True" 
+                        Background="Transparent">
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -260,76 +231,32 @@
                         </Style>
                     </Border.Style>
 
-                    <Grid IsHitTestVisible="False">
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="720" IsHitTestVisible="False">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <controls:CyberHeartControl x:Name="SoloHeart" Width="40" Height="40" Margin="0,0,10,0" IsThinking="True" />
+                    <Grid>
+                        <Border Background="#112E1A47" IsHitTestVisible="False" CornerRadius="15"/>
 
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="JAVIS AI" FontWeight="Bold" FontSize="16" Foreground="#FFFFFF"/>
-                                    <TextBlock Text="Core: gemma3:4b" FontSize="12" Foreground="#DDE7FF"/>
-                                </StackPanel>
-
-                                <TextBlock x:Name="SoloStreamText"
-                                           Margin="10,0,0,0"
-                                           Text="[데이터 분석 중...]"
-                                           Foreground="#DDE7FF"
-                                           FontSize="12"
-                                           VerticalAlignment="Center"
-                                           TextWrapping="NoWrap"
-                                           TextTrimming="CharacterEllipsis"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <controls:CyberHeartControl x:Name="SoloHeart" Width="100" Height="100" Background="Red" IsThinking="True" Margin="0,0,20,0" />
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="JAVIS CORE" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="{Binding ThinkingStage}" FontSize="16" Foreground="#DDE7FF" MaxWidth="500" TextWrapping="Wrap"/>
                             </StackPanel>
 
-                            <TextBlock Margin="0,4,0,0"
-                                       Foreground="#DDE7FF"
-                                       FontSize="10"
-                                       Opacity="0.5"
-                                       TextAlignment="Center"
-                                       TextWrapping="Wrap"
-                                       Text="{Binding ThinkingProgress}"/>
-
-                            <!-- live thought/status log -->
-                            <TextBlock Margin="0,10,0,0"
-                                       Foreground="#DDE7FF"
-                                       FontSize="13"
-                                       Opacity="0.9"
-                                       TextAlignment="Center"
-                                       TextWrapping="Wrap"
-                                       Text="{Binding ElementName=SoloStatusText, Path=Text}"/>
-
-                            <TextBlock x:Name="CurrentAction"
-                                       Margin="0,6,0,0"
-                                       Foreground="#DDE7FF"
-                                       FontSize="12"
-                                       Opacity="0.85"
-                                       TextAlignment="Center"
-                                       TextWrapping="Wrap"
-                                       Text="{Binding ElementName=SoloStatusText, Path=Text}"/>
-
-                            <TextBlock x:Name="ThinkingProgress"
-                                       Margin="0,12,0,0"
-                                       Foreground="#EEF2FF"
-                                       FontSize="13"
-                                       Opacity="0.95"
-                                       TextAlignment="Center"
-                                       TextWrapping="Wrap"
-                                       Text="{Binding ThinkingProgress}"/>
-
-                            <TextBlock Margin="0,8,0,0"
-                                       Foreground="#C7D2FE"
-                                       FontSize="12"
-                                       Opacity="0.9"
-                                       TextAlignment="Center"
-                                       Text="{Binding ThinkingStage}"/>
-
-                            <Button Margin="0,14,0,0"
-                                    Padding="14,8"
-                                    HorizontalAlignment="Center"
-                                    IsHitTestVisible="True"
-                                    Panel.ZIndex="99"
-                                    Content="{Binding StartSoloThinkingButtonText}"
+                            <Button Content="{Binding StartSoloThinkingButtonText}"
+                                    Command="{Binding StartSoloThinkingCommand}"
                                     IsEnabled="{Binding CanStartSoloThinking}"
-                                    Command="{Binding StartSoloThinkingCommand}" />
+                                    Padding="20,10"
+                                    Cursor="Hand">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+                                        <Setter Property="Opacity" Value="0.35"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Opacity" Value="1"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -376,7 +303,16 @@
         </Grid>
 
         <!-- (C) Bottom input bar -->
-        <Border Grid.Row="3" Style="{StaticResource SubCardBorderStyle}" Margin="0,6,0,0">
+        <Border x:Name="BottomControlArea" Grid.Row="3" Margin="0,6,0,0">
+            <Border.Style>
+                <Style TargetType="Border" BasedOn="{StaticResource SubCardBorderStyle}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedRoom.Mode}" Value="Solo">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>

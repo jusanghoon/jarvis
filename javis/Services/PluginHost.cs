@@ -16,21 +16,21 @@ public sealed class PluginHost
 
     public string DataDir { get; }
 
-    public string PluginsDir { get; private set; }
-    public string SkillsDir { get; private set; }
+    public string PluginsDir { get; private set; } = string.Empty;
+    public string SkillsDir { get; private set; } = string.Empty;
 
-    public PluginManager PluginManager { get; private set; }
+    public PluginManager PluginManager { get; private set; } = null!;
 
-    public PersonaManager Persona { get; private set; }
+    public PersonaManager Persona { get; private set; } = null!;
 
     // personal stores
     public VaultManager Vault { get; private set; }
     public VaultIndexManager VaultIndex { get; private set; }
 
     public SoloNotesLimiter SoloLimiter { get; } = new();
-    public SoloNotesStore SoloNotes { get; private set; }
+    public SoloNotesStore SoloNotes { get; private set; } = null!;
 
-    public KnowledgeCanon Canon { get; private set; }
+    public KnowledgeCanon Canon { get; private set; } = null!;
     public SftDatasetExporter Exporter { get; }
 
     private bool _loaded;

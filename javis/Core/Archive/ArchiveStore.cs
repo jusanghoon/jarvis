@@ -74,6 +74,7 @@ public sealed class ArchiveStore
         string? sessionId = null,
         Dictionary<string, object?>? meta = null)
     {
+        content ??= string.Empty;
         var ts = DateTimeOffset.Now;
 
         meta ??= new Dictionary<string, object?>();
@@ -81,7 +82,7 @@ public sealed class ArchiveStore
             meta["sessionId"] = sessionId;
 
         meta["contentHash"] = ContentHash.Sha256Hex(content);
-        meta["contentLen"] = content?.Length ?? 0;
+        meta["contentLen"] = content.Length;
 
         var eventId = EventId.Compute(kind: "archive", content: content, ts: ts, sessionId: sessionId);
         if (Seen(eventId))

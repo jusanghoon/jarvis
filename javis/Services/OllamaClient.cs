@@ -64,10 +64,11 @@ public sealed class OllamaClient
         await using var stream = await resp.Content.ReadAsStreamAsync(ct);
         using var reader = new System.IO.StreamReader(stream, Encoding.UTF8);
 
-        while (!reader.EndOfStream && !ct.IsCancellationRequested)
+        while (!ct.IsCancellationRequested)
         {
-            var line = await reader.ReadLineAsync();
-            if (line is null) break;
+            var line = await reader.ReadLineAsync(ct);
+            if (line is null)
+                yield break;
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             using var doc = JsonDocument.Parse(line);

@@ -29,7 +29,6 @@ public sealed class MainAiOrchestrator : IDisposable
     private static readonly TimeSpan BusyDebounce = TimeSpan.FromSeconds(75);
 
     private DateTimeOffset _lastUserMsgAt = DateTimeOffset.MinValue;
-    private string _lastUserMsg = "";
     private string _lastProcessedUserMsg = "";
     private (string kind, DateTimeOffset at, string text) _pending = ("", DateTimeOffset.MinValue, "");
 

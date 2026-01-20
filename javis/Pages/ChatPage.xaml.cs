@@ -66,8 +66,26 @@ public partial class ChatPage : Page
             EnsureSoloOrchestrator();
             _ = _soloOrch?.StartAsync();
 
+            // [추가] 자동 사유 트리거: 버튼 클릭 없이 즉시 사유 프로세스 가동
+            var msgId = Interlocked.Increment(ref _nextUserMsgId);
+            _soloOrch?.OnUserMessage(msgId, "(system) 자동 사유 시작");
+
+            if (room == javis.ViewModels.ChatRoom.Solo)
+            {
+                try { SoloHeart?.IsThinking = true; } catch { }
+                try
+                {
+                    ((ChatViewModel)DataContext).ThinkingStage = "사유 엔진 예열 중...";
+                }
+                catch { }
+                ScrollToBottomHard();
+            }
+
             BeginSoloTopicMode();
             ShowSoloStartQuestions();
+
+            // 심장 가동 상태 강제 확인
+            if (SoloHeart != null) SoloHeart.IsThinking = true;
 
             vm.ContextVars["solo_mode"] = "on";
             vm.ContextVars["user_action"] = "solo_start";
@@ -135,10 +153,15 @@ public partial class ChatPage : Page
     {
         try
         {
+            ScrollToBottomHard();
+
             if (_vm.SelectedRoom != javis.ViewModels.ChatRoom.Solo)
                 OnModeChanged(javis.ViewModels.ChatRoom.Solo);
 
             EnsureSoloOrchestrator();
+
+            try { SoloHeart?.IsThinking = true; } catch { }
+            try { _ = _soloOrch?.StartAsync(); } catch { }
 
             var msgId = Interlocked.Increment(ref _nextUserMsgId);
             _soloOrch?.OnUserMessage(msgId, "(user) 즉시 사유 시작");
@@ -311,6 +334,16 @@ public partial class ChatPage : Page
                 try { SoloHeart?.Flash(); } catch { }
             });
         };
+
+        _ = UiAsync(() =>
+        {
+            try
+            {
+                SoloHeart?.Flash();
+                SoloHeart?.InvalidateVisual();
+            }
+            catch { }
+        });
     }
 
     private static string GuessThinkingStage(string? t)
@@ -588,7 +621,7 @@ public partial class ChatPage : Page
             return;
         }
 
-        if (TopicBox != null) TopicBox.IsEnabled = false;
+        // Topic UI removed from ChatPage.xaml; keep logic best-effort.
         if (sender is Button b) b.IsEnabled = false;
 
         AddImmediate("assistant", $"✅ 주제 고정: {topic}\n이제 이 대화는 해당 주제로만 진행할게.");

@@ -24,7 +24,7 @@ public sealed class ScaleToFitDecorator : Decorator
         DependencyProperty.Register(nameof(Stretch), typeof(Stretch), typeof(ScaleToFitDecorator),
             new FrameworkPropertyMetadata(Stretch.Uniform, FrameworkPropertyMetadataOptions.AffectsArrange | FrameworkPropertyMetadataOptions.AffectsMeasure));
 
-    public static readonly DependencyProperty UseLayoutRoundingProperty =
+    public static new readonly DependencyProperty UseLayoutRoundingProperty =
         DependencyProperty.Register(nameof(UseLayoutRounding), typeof(bool), typeof(ScaleToFitDecorator),
             new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsArrange));
 
@@ -46,7 +46,7 @@ public sealed class ScaleToFitDecorator : Decorator
         set => SetValue(StretchProperty, value);
     }
 
-    public bool UseLayoutRounding
+    public new bool UseLayoutRounding
     {
         get => (bool)GetValue(UseLayoutRoundingProperty);
         set => SetValue(UseLayoutRoundingProperty, value);

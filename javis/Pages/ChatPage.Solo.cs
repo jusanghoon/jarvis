@@ -83,7 +83,7 @@ public partial class ChatPage : Page
 #endif
 
                     json = await RunDialogueAndGetFinalJsonAsync(
-                        idle, track, newUserText, recentContext, topicMode, topicSeed, vaultSnippets, ct2);
+                        idle, track, newUserText ?? string.Empty, recentContext, topicMode, topicSeed, vaultSnippets, ct2);
                 }
                 else
                 {
@@ -126,7 +126,7 @@ public partial class ChatPage : Page
                 if (track == "debate")
                 {
                     var sayPreview = root.TryGetProperty("say", out var sEl2) ? (sEl2.GetString() ?? "") : "";
-                    await UiAsync(() => AddImmediate("assistant", $"(debug) debate intent={intent}, idle={idle}, newUserLen={newUserText.Length}, sayLen={sayPreview.Length}"));
+                    await UiAsync(() => AddImmediate("assistant", $"(debug) debate intent={intent}, idle={idle}, newUserLen={newUserText?.Length ?? 0}, sayLen={sayPreview.Length}"));
                 }
 #endif
 

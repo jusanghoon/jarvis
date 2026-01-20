@@ -14,9 +14,9 @@ public sealed class SkillService : IDisposable
 
     public event Action? SkillsChanged;
 
-    public string SkillsRoot { get; private set; }
+    public string SkillsRoot { get; private set; } = string.Empty;
 
-    private FileSystemWatcher _watcher;
+    private FileSystemWatcher? _watcher;
     private readonly System.Timers.Timer _debounce;
 
     private SkillService()
@@ -141,7 +141,7 @@ public sealed class SkillService : IDisposable
 
     public void Dispose()
     {
-        _watcher.Dispose();
+        _watcher?.Dispose();
         _debounce.Dispose();
     }
 }

@@ -153,7 +153,8 @@ public sealed class AuditLogger : IAsyncDisposable
                             Directory.CreateDirectory(dir);
                     }
 
-                    await File.AppendAllTextAsync(_currentFile, sb.ToString(), Encoding.UTF8, _cts.Token);
+                    if (!string.IsNullOrWhiteSpace(_currentFile))
+                        await File.AppendAllTextAsync(_currentFile, sb.ToString(), Encoding.UTF8, _cts.Token);
                 }
             }
         }

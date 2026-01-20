@@ -44,8 +44,11 @@ public partial class ChatPage : Page
     private const bool FORCE_DEBATE_DEBUG = false;
 #endif
 
+    // (reserved) legacy SOLO cancellation/task handles (kept for future use)
+#pragma warning disable CS0169
     private CancellationTokenSource? _soloCts;
     private Task? _soloTask;
+#pragma warning restore CS0169
 
     private int _soloLastSeenMsgIndex = 0;
     private string? _soloLastNoteSig;
@@ -55,7 +58,10 @@ public partial class ChatPage : Page
     private DateTimeOffset _soloLastMaintainAt = DateTimeOffset.MinValue;
     private DateTimeOffset _soloLastImproveAt = DateTimeOffset.MinValue;
 
+    // (reserved) greeting streak (kept for future use)
+#pragma warning disable CS0414
     private int _soloGreetingStreak = 0;
+#pragma warning restore CS0414
 
     private int _soloCreateCount = 0;
     private DateTimeOffset _soloLastCreateAt = DateTimeOffset.MinValue;
@@ -70,9 +76,12 @@ public partial class ChatPage : Page
     private const int MAX_CREATES_PER_SESSION = 4;
 
     // SOLO loop protections
+    // (reserved) SOLO loop protections (kept for future use)
+#pragma warning disable CS0169
     private string? _soloLastReply;
     private int _soloSameReplyCount;
     private int _soloRepeatExitCount;
+#pragma warning restore CS0169
 
     private DateTimeOffset _debateLastAt = DateTimeOffset.MinValue;
     private static readonly TimeSpan DebateMinInterval = TimeSpan.FromMinutes(2);
