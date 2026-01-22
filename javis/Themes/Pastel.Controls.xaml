@@ -14,20 +14,44 @@
         </Setter>
     </Style>
 
+    <Style x:Key="NeonScrollbarStyle" TargetType="ScrollViewer">
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollViewer">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ScrollContentPresenter Grid.Column="0" />
+                        <ScrollBar Grid.Column="1"
+                                   Orientation="Vertical"
+                                   Value="{TemplateBinding VerticalOffset}"
+                                   Maximum="{TemplateBinding ScrollableHeight}"
+                                   ViewportSize="{TemplateBinding ViewportHeight}"
+                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Slim neon scrollbar for dark mode -->
     <Style TargetType="ScrollBar">
-        <Setter Property="Width" Value="8"/>
-        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="Background" Value="#FF1A1A2E"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ScrollBar">
-                    <Grid Background="Transparent" SnapsToDevicePixels="True">
+                    <Grid Background="#FF1A1A2E" SnapsToDevicePixels="True">
                         <Track x:Name="PART_Track" IsDirectionReversed="True">
                             <Track.Thumb>
-                                <Thumb x:Name="Thumb" Background="#FF4A4A5A">
+                                <Thumb x:Name="PART_Thumb" Background="#FF8A6BFF" MinHeight="40" Opacity="0.6">
                                     <Thumb.Template>
                                         <ControlTemplate TargetType="Thumb">
-                                            <Border CornerRadius="8"
+                                            <Border CornerRadius="4"
                                                     Background="{TemplateBinding Background}" />
                                         </ControlTemplate>
                                     </Thumb.Template>
@@ -36,11 +60,11 @@
                         </Track>
                     </Grid>
                     <ControlTemplate.Triggers>
-                        <Trigger SourceName="Thumb" Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Thumb" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                        <Trigger SourceName="PART_Thumb" Property="IsMouseOver" Value="True">
+                            <Setter TargetName="PART_Thumb" Property="Opacity" Value="1.0"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="Thumb" Property="Opacity" Value="0.35"/>
+                            <Setter TargetName="PART_Thumb" Property="Opacity" Value="0.35"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

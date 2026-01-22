@@ -31,7 +31,26 @@ namespace javis.UI.Controls
                             SoloHeart?.Flash();
                         }
                     }
+
+                    if (args.PropertyName == nameof(MainAiWidgetViewModel.ThinkingStage))
+                    {
+                        try
+                        {
+                            Dispatcher.BeginInvoke(new System.Action(() =>
+                            {
+                                try
+                                {
+                                    LogScrollViewer?.UpdateLayout();
+                                    LogScrollViewer?.ScrollToBottom();
+                                }
+                                catch { }
+                            }), System.Windows.Threading.DispatcherPriority.Background);
+                        }
+                        catch { }
+                    }
                 };
+
+                try { LogScrollViewer?.ScrollToBottom(); } catch { }
             }
         }
     }
