@@ -20,13 +20,13 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ScrollViewer">
-                    <Grid>
+                    <Grid IsHitTestVisible="True">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <ScrollContentPresenter Grid.Column="0" />
-                        <ScrollBar Grid.Column="1"
+                        <ScrollContentPresenter Grid.Column="0" IsHitTestVisible="True" />
+                        <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Column="1" IsHitTestVisible="True"
                                    Orientation="Vertical"
                                    Value="{TemplateBinding VerticalOffset}"
                                    Maximum="{TemplateBinding ScrollableHeight}"

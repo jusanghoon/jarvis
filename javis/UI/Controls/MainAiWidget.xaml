@@ -88,14 +88,12 @@
 						</Button>
 					</UniformGrid>
 
-					<Border Grid.Row="2" Background="#FF0F0F1A" CornerRadius="10" BorderBrush="#FF252545" BorderThickness="1" Padding="15">
+					<Border Grid.Row="2" Background="#FF0F0F1A" CornerRadius="10" BorderBrush="#FF252545" BorderThickness="1" Padding="15" MinHeight="160">
 						<ScrollViewer x:Name="LogScrollViewer"
 									  VerticalScrollBarVisibility="Visible"
 									  HorizontalScrollBarVisibility="Disabled"
-									  Background="Transparent">
-							<ScrollViewer.Resources>
-								<Style TargetType="ScrollBar" BasedOn="{StaticResource {x:Type ScrollBar}}" />
-							</ScrollViewer.Resources>
+									  Background="Transparent"
+									  Style="{StaticResource NeonScrollbarStyle}">
 							<TextBlock Text="{Binding ThinkingStage}"
 									   TextWrapping="Wrap"
 									   Foreground="#FF00D2FF"

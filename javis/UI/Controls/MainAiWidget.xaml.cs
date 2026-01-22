@@ -34,19 +34,15 @@ namespace javis.UI.Controls
 
                     if (args.PropertyName == nameof(MainAiWidgetViewModel.ThinkingStage))
                     {
-                        try
+                        Dispatcher.BeginInvoke(new System.Action(() =>
                         {
-                            Dispatcher.BeginInvoke(new System.Action(() =>
+                            try
                             {
-                                try
-                                {
-                                    LogScrollViewer?.UpdateLayout();
-                                    LogScrollViewer?.ScrollToBottom();
-                                }
-                                catch { }
-                            }), System.Windows.Threading.DispatcherPriority.Background);
-                        }
-                        catch { }
+                                LogScrollViewer?.UpdateLayout();
+                                LogScrollViewer?.ScrollToBottom();
+                            }
+                            catch { }
+                        }), System.Windows.Threading.DispatcherPriority.Loaded);
                     }
                 };
 
