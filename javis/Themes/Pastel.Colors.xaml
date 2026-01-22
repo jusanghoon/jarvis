@@ -2,15 +2,22 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- High-contrast palette (pastel off) -->
-    <Color x:Key="PastelBg">#FF0B1220</Color>
-    <Color x:Key="PastelText">#FFF1F5F9</Color>
+    <!-- WindowBackground -->
+    <Color x:Key="PastelBg">#FF12121A</Color>
+    <!-- Default text -->
+    <Color x:Key="PastelText">#FFE0E0E0</Color>
     <Color x:Key="PastelMuted">#FFB6C2D1</Color>
 
-    <Color x:Key="PastelCardBg">#FF121A2A</Color>
+    <!-- Card / section background -->
+    <Color x:Key="PastelCardBg">#FF1E1E2D</Color>
     <Color x:Key="PastelCardBorder">#332A3A55</Color>
 
-    <Color x:Key="PastelAccent">#FF4C8DFF</Color>
-    <Color x:Key="PastelAccent2">#FF9B59FF</Color>
+    <Color x:Key="PastelAccent">#FF8A6BFF</Color>
+    <Color x:Key="PastelAccent2">#FF00D2FF</Color>
+
+    <!-- Semantic aliases (neon accents) -->
+    <Color x:Key="PrimaryColor">#FF8A6BFF</Color>
+    <Color x:Key="SecondaryColor">#FF00D2FF</Color>
 
     <Color x:Key="PastelButtonBg">#FF162033</Color>
     <Color x:Key="PastelButtonHover">#FF1B2740</Color>
@@ -26,6 +33,16 @@
 
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource PastelAccent}"/>
     <SolidColorBrush x:Key="AccentBrush2" Color="{StaticResource PastelAccent2}"/>
+
+    <!-- selection/highlight tint -->
+    <SolidColorBrush x:Key="AccentBrushSoft" Color="#338A6BFF"/>
+    <SolidColorBrush x:Key="SelectedBackground" Color="#338A6BFF"/>
+
+    <!-- Status colors (neon-friendly on dark background) -->
+    <SolidColorBrush x:Key="SuccessBrush" Color="#FF2DFFB3"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="#FFFFD166"/>
+    <SolidColorBrush x:Key="ErrorBrush" Color="#FFFF4D7D"/>
+    <SolidColorBrush x:Key="InfoBrush" Color="#FF00D2FF"/>
 
     <SolidColorBrush x:Key="ButtonBg" Color="{StaticResource PastelButtonBg}"/>
     <SolidColorBrush x:Key="ButtonBgHover" Color="{StaticResource PastelButtonHover}"/>

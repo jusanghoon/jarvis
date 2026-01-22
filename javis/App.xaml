@@ -16,7 +16,7 @@
             </Style>
 
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Themes/Pastel.Colors.Fixed.xaml" />
+                <ResourceDictionary Source="Themes/Pastel.Colors.xaml" />
                 <ResourceDictionary Source="Themes/Pastel.Controls.xaml" />
                 <ResourceDictionary Source="Themes/Pastel.Parts.xaml" />
             </ResourceDictionary.MergedDictionaries>

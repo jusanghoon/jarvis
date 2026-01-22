@@ -16,7 +16,6 @@ namespace javis
         private readonly HomeViewModel _homeVm = new();
 
         private readonly HomePage _homePage = new();
-        private readonly ChatEntryPage _chatPage = new();
         private readonly TodosPage _todosPage = new();
         private readonly Pages.SkillsPage _skillsPage = new();
         private readonly SettingsPage _settingsPage = new();
@@ -33,18 +32,6 @@ namespace javis
             foreach (var obj in Nav.Items)
             {
                 if (obj is ListBoxItem li && (li.Tag?.ToString() == "todos"))
-                {
-                    Nav.SelectedItem = li;
-                    break;
-                }
-            }
-        }
-
-        public void NavigateToChat()
-        {
-            foreach (var obj in Nav.Items)
-            {
-                if (obj is ListBoxItem li && (li.Tag?.ToString() == "chat"))
                 {
                     Nav.SelectedItem = li;
                     break;
@@ -84,7 +71,7 @@ namespace javis
 
                 _mainAiWidgetVm.RequestNavigate += key => Dispatcher.InvokeAsync(() =>
                 {
-                    if (key is "home" or "chat" or "todos" or "skills" or "settings")
+                    if (key is "home" or "todos" or "skills" or "settings")
                     {
                         foreach (var obj in Nav.Items)
                         {
@@ -129,7 +116,6 @@ namespace javis
 
                     if (name == "open_chat_main")
                     {
-                        NavigateToChat();
                         return;
                     }
 
@@ -193,7 +179,6 @@ namespace javis
             Page page = key switch
             {
                 "home" => new HomeCalendarPage(_homeVm),
-                "chat" => _chatPage,
                 "todos" => _todosPage,
                 "map" => _mapPage,
                 "skills" => _skillsPage,

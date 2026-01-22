@@ -18,7 +18,7 @@ public partial class SkillsPage : Page
         _vm.NavigateToChatRequested += () =>
         {
             if (Application.Current.MainWindow is MainWindow mw)
-                mw.NavigateToChat();
+                mw.MainFrame?.Navigate(new HomeCalendarPage(new HomeViewModel()));
         };
     }
 

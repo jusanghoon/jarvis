@@ -27,7 +27,7 @@ public partial class MainAiWidgetViewModel : ObservableObject, ISoloUiSink
     private readonly MainAiFileRelevanceStore _relevance;
 
     private SoloOrchestrator? _soloOrch;
-    private ChatPageSoloBackendAdapter? _soloOrchBackend;
+    private SoloBackendAdapter? _soloOrchBackend;
     private long _soloMsgId;
 
     private int _autoStartIssued;
@@ -52,7 +52,7 @@ public partial class MainAiWidgetViewModel : ObservableObject, ISoloUiSink
     [ObservableProperty] private string _answerText = "";
     [ObservableProperty] private bool _isBusy;
 
-    // SOLO overlay / streaming feedback (ported from ChatViewModel)
+    // SOLO overlay / streaming feedback
     [ObservableProperty] private string _thinkingProgress = string.Empty;
     [ObservableProperty] private string _thinkingStage = "";
 
@@ -111,9 +111,9 @@ public partial class MainAiWidgetViewModel : ObservableObject, ISoloUiSink
         {
             try
             {
-                // MainAi 위젯에서는 ChatPage의 방대한 SoloProcessOneTurnAsync 로직을 직접 복제하지 않고,
+                // MainAi 위젯에서는 과거 페이지에 존재하던 방대한 SoloProcessOneTurnAsync 로직을 직접 복제하지 않고,
                 // Solo 전용 시스템 프롬프트를 둔 간단한 1-turn 호출로 동작시킨다.
-                // 필요 시 이후 단계에서 ChatPage 로직을 서비스로 승격해 재사용한다.
+                // 필요 시 이후 단계에서 해당 로직을 서비스로 승격해 재사용한다.
 
                 var model = _soloOrch?.ModelName ?? RuntimeSettings.Instance.AiModelName;
                 var prompt = (userText ?? string.Empty).Trim();
@@ -153,7 +153,7 @@ public partial class MainAiWidgetViewModel : ObservableObject, ISoloUiSink
             }
         }
 
-        _soloOrchBackend = new ChatPageSoloBackendAdapter(RunOneTurnAsync);
+        _soloOrchBackend = new SoloBackendAdapter(RunOneTurnAsync);
         _soloOrch = new SoloOrchestrator(this, _soloOrchBackend)
         {
             ModelName = RuntimeSettings.Instance.AiModelName,
@@ -319,7 +319,7 @@ public partial class MainAiWidgetViewModel : ObservableObject, ISoloUiSink
         var h = (hint ?? "").Trim();
         if (h.Length == 0) return null;
 
-        // If user says "ChatViewModel" try ChatViewModel.cs
+        // If user mentions "viewmodel" try to locate related view model code.
         var file = h;
         if (!file.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) &&
             !file.EndsWith(".xaml", StringComparison.OrdinalIgnoreCase))
@@ -580,7 +580,7 @@ public partial class MainAiWidgetViewModel : ObservableObject, ISoloUiSink
                 if (candidates.Count == 0)
                 {
                     pending.Text = string.IsNullOrWhiteSpace(text)
-                        ? "어떤 파일을 읽어야 할지 모르겠어. 예: 'ChatViewModel 코드 보여줘' 또는 'javis/ViewModels/ChatViewModel.cs 보여줘'"
+                        ? "어떤 파일을 읽어야 할지 모르겠어. 예: 'ViewModel 코드 보여줘' 또는 'javis/ViewModels/... 파일 보여줘'"
                         : text;
                     AnswerText = pending.Text;
                     return;

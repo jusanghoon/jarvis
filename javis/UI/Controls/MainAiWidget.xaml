@@ -1,6 +1,7 @@
 ﻿<UserControl x:Class="javis.UI.Controls.MainAiWidget"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:javis.Controls"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
@@ -33,7 +34,49 @@
 
             <!-- Header (toggle) -->
             <Grid Grid.Row="0" Margin="0,0,0,10">
-                <TextBlock Text="재민" FontWeight="SemiBold" Foreground="#55606C" VerticalAlignment="Center"/>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <controls:CyberHeartControl x:Name="SoloHeart"
+                                           Width="110"
+                                           Height="110"
+                                           Margin="0,0,12,0"
+                                           VerticalAlignment="Center"
+                                           IsThinking="{Binding IsSoloThinkingStarting}"/>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="재민"
+                               FontWeight="SemiBold"
+                               Foreground="#55606C"
+                               Margin="0,0,0,4"/>
+
+                    <Border Background="#22000000" CornerRadius="10" Padding="10,8" BorderBrush="#22000000" BorderThickness="1">
+                        <StackPanel>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="92">
+                                <TextBlock Text="{Binding ThinkingStage}"
+                                           TextWrapping="Wrap"
+                                           Foreground="#FF8A6BFF"
+                                           FontFamily="Consolas"
+                                           FontSize="12"/>
+                            </ScrollViewer>
+
+                            <ProgressBar Height="6"
+                                         Margin="0,8,0,0"
+                                         IsIndeterminate="{Binding IsSoloThinkingStarting}"
+                                         Foreground="#FF6FD6FF"
+                                         Background="#22000000"/>
+
+                            <TextBlock Text="{Binding ThinkingProgress}"
+                                       TextWrapping="Wrap"
+                                       Foreground="#FF6FD6FF"
+                                       FontFamily="Consolas"
+                                       FontSize="11"
+                                       Margin="0,6,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
             </Grid>
 
             <!-- Messages -->

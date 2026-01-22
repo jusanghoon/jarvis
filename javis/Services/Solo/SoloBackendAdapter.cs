@@ -4,13 +4,13 @@ using System.Threading.Tasks;
 
 namespace javis.Services.Solo;
 
-public sealed class ChatPageSoloBackendAdapter : ISoloBackend, ISoloTokenStreamSource
+public sealed class SoloBackendAdapter : ISoloBackend, ISoloTokenStreamSource
 {
     private readonly Func<string, CancellationToken, Task> _runTurn;
 
     public event Action<string>? OnTokenReceived;
 
-    public ChatPageSoloBackendAdapter(Func<string, CancellationToken, Task> runTurn)
+    public SoloBackendAdapter(Func<string, CancellationToken, Task> runTurn)
     {
         _runTurn = runTurn;
     }

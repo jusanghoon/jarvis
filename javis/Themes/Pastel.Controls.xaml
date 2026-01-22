@@ -4,12 +4,12 @@
     <!-- Global font fallback (Korean + emoji) -->
     <Style TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Malgun Gothic, Segoe UI, Segoe UI Emoji"/>
-        <Setter Property="Foreground" Value="#FF24303A"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
         <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
         <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
         <Setter Property="Effect">
             <Setter.Value>
-                <DropShadowEffect BlurRadius="6" ShadowDepth="0" Opacity="0.18" Color="#FFFFFFFF"/>
+                <DropShadowEffect BlurRadius="6" ShadowDepth="0" Opacity="0.18" Color="#FF8A6BFF"/>
             </Setter.Value>
         </Setter>
     </Style>
@@ -52,7 +52,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="14"
+                            CornerRadius="8"
                             SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="Center"
                                           VerticalAlignment="Center"/>
@@ -78,28 +78,37 @@
         <Setter Property="Padding" Value="0"/>
         <Setter Property="Width" Value="44"/>
         <Setter Property="Height" Value="32"/>
-        <Setter Property="Background" Value="#55FFFFFF"/>
-        <Setter Property="BorderBrush" Value="#33B39DFF"/>
+        <Setter Property="Background" Value="#2212121A"/>
+        <Setter Property="BorderBrush" Value="#33FFFFFF"/>
         <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="8">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#3312121A"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#4412121A"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- Icon font (Windows default) -->
     <FontFamily x:Key="IconFont">Segoe MDL2 Assets</FontFamily>
-
-    <!-- Chat input TextBox (used in ChatPage.InputBox) -->
-    <Style x:Key="PastelChatInputTextBox" TargetType="TextBox">
-        <Setter Property="FontSize" Value="18"/>
-        <Setter Property="Foreground" Value="#FF1E2933"/>
-        <Setter Property="Background" Value="#F2FFFFFF"/>
-        <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
-        <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="12"/>
-        <Setter Property="VerticalContentAlignment" Value="Center"/>
-        <Setter Property="AcceptsReturn" Value="True"/>
-        <Setter Property="TextWrapping" Value="Wrap"/>
-        <Setter Property="CaretBrush" Value="#FF1E2933"/>
-        <Setter Property="SelectionBrush" Value="#663B82F6"/>
-    </Style>
 
     <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="#FF6D28D9"/>

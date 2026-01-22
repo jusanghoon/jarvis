@@ -59,12 +59,12 @@ public sealed class MainAiHelpResponder
 
 가능한 intent:
 - navigate: 특정 화면으로 이동
-  - target: home|chat|todos|skills|settings|updates
+  - target: home|todos|skills|settings|updates
 - action: 화면 이동 외의 단순 액션
-  - name: open_todos_today|open_todos_tomorrow|open_todos_date|open_chat_main|open_settings_updates|open_user_profiles
+  - name: open_todos_today|open_todos_tomorrow|open_todos_date|open_settings_updates|open_user_profiles
   - date: open_todos_date일 때만 ("yyyy-MM-dd" 또는 "오늘|내일|모레")
 - read_code: 소스 코드(파일) 내용을 읽어서 보여달라는 요청 (분석을 위해 먼저 열어볼 때도 사용)
-  - path: 상대 경로(예: "javis/ViewModels/ChatViewModel.cs")
+  - path: 상대 경로(예: "javis/ViewModels/MainAiWidgetViewModel.cs")
   - hint: 사용자가 말한 기능/파일/클래스 힌트(선택)
   - related: 추가로 함께 확인하면 좋은 파일 경로들(선택, 최대 3개)
 - say: 안내 문구만 출력
@@ -81,11 +81,10 @@ public sealed class MainAiHelpResponder
 {{codeIndexText}}
 
 JSON 스키마:
-{ "intent": "navigate|action|read_code|say", "target": "home|chat|todos|skills|settings|updates", "name": "...", "date": "...", "path": "...", "hint": "...", "related": ["..."], "text": "..." }
+{ "intent": "navigate|action|read_code|say", "target": "home|todos|skills|settings|updates", "name": "...", "date": "...", "path": "...", "hint": "...", "related": ["..."], "text": "..." }
 
 출력 예시:
 { "intent": "action", "name": "open_todos_tomorrow", "text": "내일 할 일을 열어줄게." }
-{ "intent": "read_code", "path": "javis/ViewModels/ChatViewModel.cs", "related": ["javis/Pages/ChatPage.xaml.cs"], "text": "채팅 관련 코드를 먼저 확인할게." }
 { "intent": "read_code", "hint": "date_time", "text": "날짜 처리 코드를 먼저 확인할게." }
 """;
 

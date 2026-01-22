@@ -85,7 +85,7 @@ public partial class MainChatHistoryPage : Page
     private void Back_Click(object sender, RoutedEventArgs e)
     {
         if (NavigationService?.CanGoBack == true) NavigationService.GoBack();
-        else NavigationService?.Navigate(new ChatEntryPage());
+        else NavigationService?.Navigate(new HomeCalendarPage(new javis.ViewModels.HomeViewModel()));
     }
 
     private async void Open_Click(object sender, RoutedEventArgs e)

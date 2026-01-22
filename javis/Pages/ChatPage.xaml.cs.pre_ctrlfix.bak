@@ -214,7 +214,8 @@ public partial class ChatPage : Page
     {
         var vm = (ChatViewModel)DataContext;
 
-        // 2 user 45        var total = vm.Messages.Count;
+        // 2 user 45
+        var total = vm.Messages.Count;
         var delta = vm.Messages.Skip(_soloLastSeenMsgIndex).ToList();
         _soloLastSeenMsgIndex = total;
         // Only trigger SOLO on *user* messages. We intentionally ignore assistant messages (including SOLO outputs).

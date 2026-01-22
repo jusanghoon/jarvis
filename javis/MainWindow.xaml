@@ -8,7 +8,7 @@
         MinWidth="1200" MinHeight="720"
         WindowStyle="None"
         ResizeMode="CanResize"
-        Background="{StaticResource AppBackgroundBrush}"
+        Background="{DynamicResource AppBackgroundBrush}"
         PreviewKeyDown="MainWindow_PreviewKeyDown"
         FontFamily="Segoe UI, Malgun Gothic, Segoe UI Emoji">
 
@@ -67,8 +67,8 @@
 								TextOptions.TextRenderingMode="ClearType"
 								RenderOptions.ClearTypeHint="Enabled" Grid.ColumnSpan="2">
 			<Grid Width="1440" Height="720">
-				<!-- Background (no image): soft gradient + ornaments -->
-				<Border Background="{StaticResource PastelBackgroundImageBrush}"/>
+				<!-- Background: force dark theme color -->
+				<Border Background="{DynamicResource AppBackgroundBrush}"/>
 
 				<Canvas IsHitTestVisible="False"/>
 			</Grid>
@@ -131,7 +131,7 @@
 						</ListBox.ItemContainerStyle>
 
 						<ListBoxItem Tag="home" Content="Home" />
-						<ListBoxItem Tag="chat" Content="Chat" />
+						<!-- NOTE: Legacy Chat navigation removed. Main navigation is simplified (Home/MainAiWidget/Settings). -->
 						<ListBoxItem Tag="todos" Content="Todos" />
 						<ListBoxItem Tag="map" Content="Map" />
 						<ListBoxItem Tag="skills" Content="Skills" />
