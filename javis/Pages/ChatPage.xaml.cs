@@ -290,6 +290,11 @@ public partial class ChatPage : Page
 
     private void EnsureSoloOrchestrator()
     {
+        // NOTE: SOLO 사유 기능의 소유권은 MainAiWidget(MainAiWidgetViewModel)로 이관됨.
+        // ChatPage는 더 이상 SoloOrchestrator를 직접 생성/관리하지 않는다.
+        return;
+
+#if false
         if (_soloOrch != null) return;
 
         var sink = new ChatPageSoloUiSink(
@@ -346,6 +351,7 @@ public partial class ChatPage : Page
             }
             catch { }
         });
+#endif
     }
 
     private static string GuessThinkingStage(string? t)

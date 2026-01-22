@@ -160,57 +160,7 @@ public partial class ChatViewModel : ObservableObject
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string _statusText = "READY";
 
-    // SOLO overlay / streaming feedback
-    [ObservableProperty] private string _thinkingProgress = string.Empty;
-    [ObservableProperty] private string _thinkingStage = "";
-
-    public event Action? ForceThinkingRequested;
-
-    [RelayCommand]
-    private void ForceThinking()
-        => ForceThinkingRequested?.Invoke();
-
-    // explicit SOLO start command (used by the overlay button)
-    [ObservableProperty] private bool _isSoloThinkingStarting;
-    [ObservableProperty] private string _startSoloThinkingButtonText = "즉시 사유 시작";
-
-    public bool CanStartSoloThinking => !IsSoloThinkingStarting;
-
-    [RelayCommand(CanExecute = nameof(CanStartSoloThinking))]
-    private Task StartSoloThinkingAsync()
-    {
-        if (!CanStartSoloThinking) return Task.CompletedTask;
-
-        // reset overlay state immediately
-        ThinkingStage = "";
-        ThinkingProgress = "";
-
-        if (SelectedRoom != ChatRoom.Solo)
-            SelectedRoom = ChatRoom.Solo;
-
-        IsSoloThinkingStarting = true;
-        StartSoloThinkingButtonText = "뇌 가동 중...";
-
-        try { StartSoloThinkingCommand.NotifyCanExecuteChanged(); } catch { }
-
-        try
-        {
-            // ChatPage owns the actual SoloOrchestrator instance; route the request via existing event.
-            ForceThinkingRequested?.Invoke();
-        }
-        catch
-        {
-            // best-effort
-        }
-        finally
-        {
-            StartSoloThinkingButtonText = "즉시 사유 시작";
-            IsSoloThinkingStarting = false;
-            try { StartSoloThinkingCommand.NotifyCanExecuteChanged(); } catch { }
-        }
-
-        return Task.CompletedTask;
-    }
+    // NOTE: SOLO 사유 기능은 MainAiWidget(MainAiWidgetViewModel)에서 단독으로 소유/관리한다.
 
     public bool Think { get; set; } = false;
 

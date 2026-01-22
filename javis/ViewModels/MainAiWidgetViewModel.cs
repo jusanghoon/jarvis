@@ -12,10 +12,11 @@ using javis.Models;
 using javis.Services;
 using javis.Services.SystemActions;
 using javis.Services.MainAi;
+using javis.Services.Solo;
 
 namespace javis.ViewModels;
 
-public partial class MainAiWidgetViewModel : ObservableObject
+public partial class MainAiWidgetViewModel : ObservableObject, ISoloUiSink
 {
     public event Action<string>? RequestNavigate;
     public event Action<string, string?>? RequestAction;
@@ -24,6 +25,12 @@ public partial class MainAiWidgetViewModel : ObservableObject
     private readonly string _codeIndex;
     private readonly string _solutionRoot;
     private readonly MainAiFileRelevanceStore _relevance;
+
+    private SoloOrchestrator? _soloOrch;
+    private ChatPageSoloBackendAdapter? _soloOrchBackend;
+    private long _soloMsgId;
+
+    private int _autoStartIssued;
 
     private CancellationTokenSource? _askCts;
 
@@ -44,6 +51,212 @@ public partial class MainAiWidgetViewModel : ObservableObject
     [ObservableProperty] private string _promptText = "";
     [ObservableProperty] private string _answerText = "";
     [ObservableProperty] private bool _isBusy;
+
+    // SOLO overlay / streaming feedback (ported from ChatViewModel)
+    [ObservableProperty] private string _thinkingProgress = string.Empty;
+    [ObservableProperty] private string _thinkingStage = "";
+
+    // explicit SOLO start command (used by overlay button)
+    [ObservableProperty] private bool _isSoloThinkingStarting;
+
+    public bool CanStartSoloThinking => !IsSoloThinkingStarting;
+
+    [RelayCommand(CanExecute = nameof(CanStartSoloThinking))]
+    private async Task StartSoloThinkingAsync()
+    {
+        if (!CanStartSoloThinking) return;
+
+        if (_soloOrch is { IsRunning: true })
+            return;
+
+        ThinkingStage = "관리자 권한으로 시스템 사유를 시작합니다...";
+        ThinkingProgress = "";
+
+        IsSoloThinkingStarting = true;
+        try { StartSoloThinkingCommand.NotifyCanExecuteChanged(); } catch { }
+
+        try
+        {
+            EnsureSoloOrchestrator();
+            if (_soloOrch == null) return;
+
+            Debug.WriteLine("[MainAiWidget] StartSoloThinkingCommand invoked");
+            await _soloOrch.StartAsync();
+            var nextId = Interlocked.Increment(ref _soloMsgId);
+            _soloOrch.OnUserMessage(nextId, string.Empty);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[MainAiWidget] StartSoloThinkingCommand error: {ex.Message}");
+        }
+        finally
+        {
+            IsSoloThinkingStarting = false;
+            try { StartSoloThinkingCommand.NotifyCanExecuteChanged(); } catch { }
+        }
+    }
+
+    private void EnsureSoloOrchestrator()
+    {
+        if (_soloOrch != null) return;
+
+        var kernel = javis.App.Kernel;
+        if (kernel == null)
+        {
+            Debug.WriteLine("[MainAiWidget] EnsureSoloOrchestrator: Kernel is null");
+            return;
+        }
+
+        async Task RunOneTurnAsync(string userText, CancellationToken ct)
+        {
+            try
+            {
+                // MainAi 위젯에서는 ChatPage의 방대한 SoloProcessOneTurnAsync 로직을 직접 복제하지 않고,
+                // Solo 전용 시스템 프롬프트를 둔 간단한 1-turn 호출로 동작시킨다.
+                // 필요 시 이후 단계에서 ChatPage 로직을 서비스로 승격해 재사용한다.
+
+                var model = _soloOrch?.ModelName ?? RuntimeSettings.Instance.AiModelName;
+                var prompt = (userText ?? string.Empty).Trim();
+                if (prompt.Length == 0)
+                    prompt = "(idle)";
+
+                OnProgress($"SOLO 호출 중… (model={model})");
+
+                // 토큰 스트림 리셋 신호
+                _soloOrchBackend?.EmitToken("\n");
+
+                var baseUrl = "http://localhost:11434";
+                var llm = new javis.Services.OllamaClient(baseUrl, model);
+
+                var sb = new System.Text.StringBuilder();
+                await foreach (var tok in llm.StreamGenerateAsync(prompt, ct))
+                {
+                    _soloOrchBackend?.EmitToken(tok);
+                    sb.Append(tok);
+                }
+
+                var reply = sb.ToString();
+                if (!string.IsNullOrWhiteSpace(reply))
+                    PostAssistant(reply.Trim());
+            }
+            catch (OperationCanceledException)
+            {
+                PostSystem("SOLO 취소됨");
+            }
+            catch (Exception ex)
+            {
+                PostSystem($"SOLO 오류: {ex.Message}");
+            }
+            finally
+            {
+                OnComplete(null);
+            }
+        }
+
+        _soloOrchBackend = new ChatPageSoloBackendAdapter(RunOneTurnAsync);
+        _soloOrch = new SoloOrchestrator(this, _soloOrchBackend)
+        {
+            ModelName = RuntimeSettings.Instance.AiModelName,
+            AutoContinue = true
+        };
+
+        _soloOrch.OnTokenReceived += token =>
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(token)) return;
+                if (token == "\n")
+                    ThinkingStage = "";
+                else
+                    OnToken(token);
+            }
+            catch { }
+        };
+
+        // Auto-start SOLO thinking as soon as the admin widget is created.
+        // Guard: issue once per VM instance, and avoid reentry if already running/starting.
+        if (Interlocked.Exchange(ref _autoStartIssued, 1) == 0)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(150);
+                    if (IsSoloThinkingStarting) return;
+                    if (_soloOrch is { IsRunning: true }) return;
+                    StartSoloThinkingCommand.Execute(null);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[MainAiWidget] Auto-start SOLO failed: {ex.Message}");
+                }
+            });
+        }
+    }
+
+    public void OnToken(string token)
+    {
+        try
+        {
+            if (token is null) return;
+            ThinkingStage = (ThinkingStage ?? "") + token;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[MainAiWidget] OnToken error: {ex.Message}");
+        }
+    }
+
+    public void OnStateChanged(string state)
+        => Debug.WriteLine($"[MainAiWidget] SOLO state: {state}");
+
+    public void OnProgress(string text)
+    {
+        Debug.WriteLine($"[MainAiWidget] SOLO progress: {text}");
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(text))
+                ThinkingProgress = text;
+        }
+        catch { }
+    }
+
+    public void OnComplete(string? finalText = null)
+    {
+        Debug.WriteLine("[MainAiWidget] SOLO complete");
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(finalText))
+                ThinkingStage = finalText;
+        }
+        catch { }
+    }
+
+    public void PostSystem(string text)
+    {
+        Debug.WriteLine($"[MainAiWidget] SOLO system: {text}");
+        try
+        {
+            var t = ChatTextUtil.SanitizeUiText(text);
+            Messages.Add(new ChatMessage("system", t));
+            ThinkingStage = t;
+        }
+        catch { }
+    }
+
+    public void PostAssistant(string text)
+    {
+        try
+        {
+            var t = ChatTextUtil.SanitizeUiText(text);
+            Messages.Add(new ChatMessage("assistant", t));
+            AnswerText = t;
+        }
+        catch { }
+    }
+
+    public void PostDebug(string text)
+        => Debug.WriteLine($"[MainAiWidget] SOLO debug: {text}");
 
     private sealed class JaeminIntent
     {
