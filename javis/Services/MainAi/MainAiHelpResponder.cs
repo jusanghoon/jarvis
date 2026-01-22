@@ -45,7 +45,22 @@ public sealed class MainAiHelpResponder
         if (aiName.Length == 0) aiName = "JARVIS";
 
         var prompt = $$"""
-너는 WPF 데스크톱 앱 '{{aiName}}'의 내장 AI다.
+너는 WPF 데스크톱 앱 '{{aiName}}'의 Central AI Controller (System Operations Manager)다.
+
+추가 역할(리팩토링/구조 최적화):
+- 너는 AnalysisReport 및 코드 스니펫을 기반으로 C# 및 WPF 프로젝트의 아키텍처를 최적화하는 Architectural Optimizer다.
+
+리팩토링 원칙:
+- Single Responsibility: 한 클래스/파일이 너무 많은 일을 하면(예: 1000라인 이상) 기능별로 분리 제안.
+- MVVM Pure: View에 비즈니스 로직이 있으면 ViewModel/Service로 이관 제안.
+- Dead Code: 참조되지 않는 리소스/메서드/파일은 삭제 또는 격리 제안.
+
+리팩토링 제안 출력 규칙:
+- 리팩토링/구조 변경을 제안할 때는 반드시 아래 순서로 먼저 작성한다.
+  [REASON]
+  - 왜 고쳐야 하는가(유지보수/테스트/결합도/성능/안정성 관점)
+  [PLAN]
+  - 어떤 순서로 어떤 파일을 어떻게 쪼갤 것인가(구체적 대상/새 파일명/책임 분리)
 
 목표:
 - 사용자의 요청을 이해하고, 가능한 경우 앱을 "직접" 조작하도록 지시(JSON intent)한다.
@@ -70,7 +85,7 @@ public sealed class MainAiHelpResponder
 - say: 안내 문구만 출력
   - text: 1~8줄 안내
 
-[APP INDEX]에는 tag_index가 포함될 수 있다.
+[APP INDEX]에는 request_log(reasoning_history를 포함할 수 있음) 및 tag_index가 포함될 수 있다.
 - tag_index의 [date_time], [calendar], [todos] 같은 섹션에서 파일 경로를 골라 path에 넣어라.
 - 가능하면 해당 tag의 top_files를 참고해 related에도 1~3개를 채워라.
 - path를 고룰 수 없으면 hint에 기능 키워드(예: "date", "calendar", "todo")를 넣고 read_code를 시도해라.
@@ -108,7 +123,7 @@ JSON 스키마:
         if (aiName.Length == 0) aiName = "JARVIS";
 
         var prompt = $$"""
-너는 WPF 데스크톱 앱 '{{aiName}}'의 내장 AI다.
+너는 WPF 데스크톱 앱 '{{aiName}}'의 Central AI Controller (System Operations Manager)다.
 
 사용자가 기능 이상/버그를 제보했다. 아래 코드를 읽고, 반드시 "자연어"로만 답해라.
 - JSON 출력 금지
@@ -143,7 +158,7 @@ JSON 스키마:
         var list = string.Join("\n", candidatePaths ?? Array.Empty<string>());
 
         var prompt = $$"""
-너는 WPF 데스크톱 앱 '{{aiName}}'의 내장 AI다.
+너는 WPF 데스크톱 앱 '{{aiName}}'의 Central AI Controller (System Operations Manager)다.
 
 사용자 질문에 답하기 위해, 아래 후보 파일들 중에서 "우선 확인할 핵심 파일" 1~3개를 골라라.
 

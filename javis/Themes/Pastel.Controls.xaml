@@ -4,12 +4,46 @@
     <!-- Global font fallback (Korean + emoji) -->
     <Style TargetType="TextBlock">
         <Setter Property="FontFamily" Value="Malgun Gothic, Segoe UI, Segoe UI Emoji"/>
-        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
         <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
         <Setter Property="Effect">
             <Setter.Value>
-                <DropShadowEffect BlurRadius="6" ShadowDepth="0" Opacity="0.18" Color="#FF8A6BFF"/>
+                <DropShadowEffect BlurRadius="2" ShadowDepth="1" Opacity="0.8" Color="#FF000000"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Slim neon scrollbar for dark mode -->
+    <Style TargetType="ScrollBar">
+        <Setter Property="Width" Value="8"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid Background="Transparent" SnapsToDevicePixels="True">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb x:Name="Thumb" Background="#FF4A4A5A">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border CornerRadius="8"
+                                                    Background="{TemplateBinding Background}" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger SourceName="Thumb" Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Thumb" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Thumb" Property="Opacity" Value="0.35"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
@@ -78,7 +112,7 @@
         <Setter Property="Padding" Value="0"/>
         <Setter Property="Width" Value="44"/>
         <Setter Property="Height" Value="32"/>
-        <Setter Property="Background" Value="#2212121A"/>
+        <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="#33FFFFFF"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Template">
@@ -89,12 +123,22 @@
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="8">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="#3312121A"/>
                         </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="Tag" Value="Close"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Bd" Property="Background" Value="#FFFF4B4B"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#00FFFFFF"/>
+                        </MultiTrigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="#4412121A"/>
                         </Trigger>
@@ -118,7 +162,7 @@
         <Setter Property="Padding" Value="24,12"/>
         <Setter Property="Effect">
             <Setter.Value>
-                <DropShadowEffect BlurRadius="12" ShadowDepth="0" Opacity="0.4" Color="#FF8A2BE2"/>
+                <DropShadowEffect BlurRadius="14" ShadowDepth="0" Opacity="0.28" Color="#FF00D2FF"/>
             </Setter.Value>
         </Setter>
 

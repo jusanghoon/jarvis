@@ -3,14 +3,17 @@
 
     <!-- High-contrast palette (pastel off) -->
     <!-- WindowBackground -->
-    <Color x:Key="PastelBg">#FF12121A</Color>
+    <Color x:Key="PastelBg">#FF1A1A2E</Color>
     <!-- Default text -->
-    <Color x:Key="PastelText">#FFE0E0E0</Color>
-    <Color x:Key="PastelMuted">#FFB6C2D1</Color>
+    <Color x:Key="PastelText">#FFFFFFFF</Color>
+    <!-- Secondary text -->
+    <Color x:Key="PastelMuted">#FFA0A0A0</Color>
+    <!-- Disabled text -->
+    <Color x:Key="TextDisabledColor">#FF505050</Color>
 
     <!-- Card / section background -->
-    <Color x:Key="PastelCardBg">#FF1E1E2D</Color>
-    <Color x:Key="PastelCardBorder">#332A3A55</Color>
+    <Color x:Key="PastelCardBg">#FF252545</Color>
+    <Color x:Key="PastelCardBorder">#FF3A3A4A</Color>
 
     <Color x:Key="PastelAccent">#FF8A6BFF</Color>
     <Color x:Key="PastelAccent2">#FF00D2FF</Color>
@@ -27,9 +30,21 @@
     <SolidColorBrush x:Key="AppBackgroundBrush" Color="{StaticResource PastelBg}"/>
     <SolidColorBrush x:Key="TextPrimary" Color="{StaticResource PastelText}"/>
     <SolidColorBrush x:Key="TextMuted" Color="{StaticResource PastelMuted}"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="{StaticResource PastelMuted}"/>
+    <SolidColorBrush x:Key="TextDisabled" Color="{StaticResource TextDisabledColor}"/>
 
     <SolidColorBrush x:Key="CardBackground" Color="{StaticResource PastelCardBg}"/>
     <SolidColorBrush x:Key="CardBorder" Color="{StaticResource PastelCardBorder}"/>
+
+    <!-- Border definition -->
+    <SolidColorBrush x:Key="BorderColor" Color="#FF3A3A4A"/>
+    <SolidColorBrush x:Key="PrimaryBorder" Color="#FF8A6BFF"/>
+    <SolidColorBrush x:Key="SelectedBorder" Color="#FF00D2FF"/>
+
+    <!-- Alias keys for XAML cleanup -->
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource PastelCardBg}"/>
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource PastelText}"/>
+    <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PastelAccent}"/>
 
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource PastelAccent}"/>
     <SolidColorBrush x:Key="AccentBrush2" Color="{StaticResource PastelAccent2}"/>
@@ -37,6 +52,7 @@
     <!-- selection/highlight tint -->
     <SolidColorBrush x:Key="AccentBrushSoft" Color="#338A6BFF"/>
     <SolidColorBrush x:Key="SelectedBackground" Color="#338A6BFF"/>
+    <SolidColorBrush x:Key="SelectedBackgroundBrush" Color="#338A6BFF"/>
 
     <!-- Status colors (neon-friendly on dark background) -->
     <SolidColorBrush x:Key="SuccessBrush" Color="#FF2DFFB3"/>

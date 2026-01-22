@@ -26,58 +26,81 @@
             BorderThickness="1"
             Padding="14,14,14,18">
         <Grid>
+            <!-- Cyber grid overlay -->
+            <Border IsHitTestVisible="False" CornerRadius="22">
+                <Border.Background>
+                    <VisualBrush Opacity="0.03" TileMode="Tile" Viewport="0,0,20,20" ViewportUnits="Absolute">
+                        <VisualBrush.Visual>
+                            <Grid Width="20" Height="20" Background="Transparent">
+                                <Path Data="M 20 0 L 0 0 0 20" Stroke="#FF8A6BFF" StrokeThickness="1"/>
+                            </Grid>
+                        </VisualBrush.Visual>
+                    </VisualBrush>
+                </Border.Background>
+            </Border>
+
+            <Grid ClipToBounds="False">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Header (toggle) -->
-            <Grid Grid.Row="0" Margin="0,0,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <!-- Header: 2:8 golden ratio layout -->
+            <Border Grid.Row="0" Margin="0,0,0,10" Padding="10" ClipToBounds="False" Background="Transparent">
+                <Grid ClipToBounds="False">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160"/>
+                        <ColumnDefinition Width="8*"/>
+                    </Grid.ColumnDefinitions>
 
+                <!-- Left: core/heart -->
                 <controls:CyberHeartControl x:Name="SoloHeart"
+                                           Grid.Column="0"
                                            Width="110"
                                            Height="110"
-                                           Margin="0,0,12,0"
+                                           HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
                                            IsThinking="{Binding IsSoloThinkingStarting}"/>
 
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="재민"
-                               FontWeight="SemiBold"
-                               Foreground="#55606C"
-                               Margin="0,0,0,4"/>
+                <!-- Right: thinking/log + progress (with left divider) -->
+                    <Border Grid.Column="1"
+                            BorderBrush="#FF3A3A5A"
+                            BorderThickness="1,0,0,0"
+                            Padding="18,0,0,0"
+                            ClipToBounds="False">
 
-                    <Border Background="#22000000" CornerRadius="10" Padding="10,8" BorderBrush="#22000000" BorderThickness="1">
-                        <StackPanel>
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="92">
+                    <StackPanel VerticalAlignment="Center">
+                        <Border Background="#FF0F0F1A"
+                                CornerRadius="10"
+                                BorderBrush="#FF252545"
+                                BorderThickness="1"
+                                Padding="15">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          MaxHeight="92"
+                                          Background="Transparent">
                                 <TextBlock Text="{Binding ThinkingStage}"
                                            TextWrapping="Wrap"
-                                           Foreground="#FF8A6BFF"
-                                           FontFamily="Consolas"
-                                           FontSize="12"/>
+                                           Foreground="#FF00D2FF"
+                                           FontFamily="Cascadia Code"
+                                           FontSize="12">
+                                    <TextBlock.Effect>
+                                        <DropShadowEffect BlurRadius="8" ShadowDepth="0" Opacity="0.6" Color="#FF00D2FF"/>
+                                    </TextBlock.Effect>
+                                </TextBlock>
                             </ScrollViewer>
+                        </Border>
 
-                            <ProgressBar Height="6"
-                                         Margin="0,8,0,0"
-                                         IsIndeterminate="{Binding IsSoloThinkingStarting}"
-                                         Foreground="#FF6FD6FF"
-                                         Background="#22000000"/>
-
-                            <TextBlock Text="{Binding ThinkingProgress}"
-                                       TextWrapping="Wrap"
-                                       Foreground="#FF6FD6FF"
-                                       FontFamily="Consolas"
-                                       FontSize="11"
-                                       Margin="0,6,0,0"/>
-                        </StackPanel>
+                        <ProgressBar Height="6"
+                                     Margin="0,10,0,0"
+                                     IsIndeterminate="{Binding IsSoloThinkingStarting}"
+                                     Foreground="#FF8A6BFF"
+                                     Background="#33000000"/>
+                    </StackPanel>
                     </Border>
-                </StackPanel>
-            </Grid>
+                </Grid>
+            </Border>
 
             <!-- Messages -->
             <Border Grid.Row="1"
@@ -130,6 +153,7 @@
                          Style="{StaticResource PastelInputTextBox}"
                          Height="38"
                          Background="#EEFFFFFF"
+                         Foreground="#FF000000"
                          BorderBrush="#33FFFFFF"
                          Text="{Binding PromptText, UpdateSourceTrigger=PropertyChanged}" />
 
@@ -167,6 +191,7 @@
                         </ControlTemplate>
                     </Button.Template>
                 </Button>
+            </Grid>
             </Grid>
         </Grid>
     </Border>

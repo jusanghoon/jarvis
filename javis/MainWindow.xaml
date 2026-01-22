@@ -8,11 +8,16 @@
         MinWidth="1200" MinHeight="720"
         WindowStyle="None"
         ResizeMode="CanResize"
-        Background="{DynamicResource AppBackgroundBrush}"
+        Background="{DynamicResource WindowBackgroundGradientBrush}"
         PreviewKeyDown="MainWindow_PreviewKeyDown"
         FontFamily="Segoe UI, Malgun Gothic, Segoe UI Emoji">
 
 	<Window.Resources>
+		<LinearGradientBrush x:Key="WindowBackgroundGradientBrush" StartPoint="0,0" EndPoint="1,1">
+			<GradientStop Color="#FF1A1A2E" Offset="0"/>
+			<GradientStop Color="#FF211A3E" Offset="1"/>
+		</LinearGradientBrush>
+
 		<Style x:Key="JaeminPanelToggleStyle" TargetType="ToggleButton">
 			<Setter Property="Width" Value="40"/>
 			<Setter Property="Height" Value="40"/>
@@ -85,50 +90,24 @@
 			</Grid.ColumnDefinitions>
 
 			<!-- Left nav -->
-			<Border x:Name="LeftNavHost" Grid.Column="0" Background="#00FFFFFF" Padding="0" HorizontalAlignment="Stretch" Margin="0">
-				<Border CornerRadius="18" Background="#5AFFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="0" Margin="0">
+			<Border x:Name="LeftNavHost" Grid.Column="0" Background="Transparent" Padding="0" HorizontalAlignment="Stretch" Margin="0">
+				<Border CornerRadius="18" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="0" Margin="0">
 					<StackPanel>
-						<TextBlock Text="JARVIS" FontWeight="Bold" FontSize="18" Margin="10,8,0,10" />
+						<TextBlock Text="JARVIS"
+								   FontWeight="Bold"
+								   FontSize="18"
+								   Margin="10,8,0,10"
+								   Foreground="#FF8A6BFF">
+							<TextBlock.Effect>
+								<DropShadowEffect BlurRadius="5" ShadowDepth="0" Opacity="0.55" Color="#FF8A6BFF"/>
+							</TextBlock.Effect>
+						</TextBlock>
 
 						<ListBox x:Name="Nav"
 								 Background="Transparent"
 								 BorderThickness="0"
 								 FontSize="16"
 								 SelectionChanged="Nav_SelectionChanged">
-							<ListBox.ItemContainerStyle>
-								<Style TargetType="ListBoxItem">
-									<Setter Property="Padding" Value="10,8"/>
-									<Setter Property="MinHeight" Value="40"/>
-									<Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-									<Setter Property="Template">
-										<Setter.Value>
-											<ControlTemplate TargetType="ListBoxItem">
-												<Border x:Name="Bd"
-														Padding="{TemplateBinding Padding}"
-														CornerRadius="14"
-														Background="Transparent"
-														BorderBrush="Transparent"
-														BorderThickness="1">
-													<ContentPresenter />
-												</Border>
-												<ControlTemplate.Triggers>
-													<Trigger Property="IsSelected" Value="True">
-														<Setter TargetName="Bd" Property="Background" Value="#99FFFFFF"/>
-														<Setter TargetName="Bd" Property="BorderBrush" Value="#55B39DFF"/>
-													</Trigger>
-													<Trigger Property="IsMouseOver" Value="True">
-														<Setter TargetName="Bd" Property="Background" Value="#77FFFFFF"/>
-														<Setter TargetName="Bd" Property="BorderBrush" Value="#44FFFFFF"/>
-													</Trigger>
-													<Trigger Property="IsEnabled" Value="False">
-														<Setter TargetName="Bd" Property="Opacity" Value="0.55"/>
-													</Trigger>
-												</ControlTemplate.Triggers>
-											</ControlTemplate>
-									</Setter.Value>
-								</Setter>
-							</Style>
-						</ListBox.ItemContainerStyle>
 
 						<ListBoxItem Tag="home" Content="Home" />
 						<!-- NOTE: Legacy Chat navigation removed. Main navigation is simplified (Home/MainAiWidget/Settings). -->
@@ -171,8 +150,8 @@
 
 					<Border Grid.Row="0"
 							CornerRadius="18"
-							Background="#B2FFFFFF"
-							BorderBrush="#55B39DFF"
+							Background="{DynamicResource CardBackgroundBrush}"
+							BorderBrush="{DynamicResource PrimaryBrush}"
 							BorderThickness="1"
 							Padding="6,4"
 							MinHeight="48"
@@ -196,10 +175,10 @@
 											  Style="{StaticResource JaeminPanelToggleStyle}" />
 
 							<TextBlock Grid.Column="1"
-										   Text="재민 - AI 관리자"
-										   FontSize="14"
-										   FontWeight="SemiBold"
-										   Foreground="#1F2B36"
+									   Text="재민 - AI 관리자"
+									   FontSize="14"
+									   FontWeight="SemiBold"
+									   Foreground="{DynamicResource TextPrimaryBrush}"
 										   VerticalAlignment="Center"
 										   HorizontalAlignment="Center"/>
 						</Grid>
@@ -217,25 +196,28 @@
 		<!-- Title bar overlay (not scaled): stays at actual window top-right -->
 		<Border x:Name="TitleBarHost"
                 Height="40"
-                Background="#00FFFFFF"
+                Background="#FF252545"
                 VerticalAlignment="Top"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" Grid.ColumnSpan="2">
 			<DockPanel LastChildFill="True" Margin="0">
 				<StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,6,4">
 					<Button Click="Min_Click" Style="{StaticResource TitleBarButton}">
-						<TextBlock Text="_" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+						<TextBlock Text="_" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#FF00D2FF"/>
 					</Button>
 					<Button Click="Max_Click" Margin="6,0,0,0" Style="{StaticResource TitleBarButton}">
-						<TextBlock Text="[]" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+						<TextBlock Text="[]" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#FF00D2FF"/>
 					</Button>
-					<Button Click="Close_Click" Margin="6,0,0,0" Style="{StaticResource TitleBarButton}">
-						<TextBlock Text="X" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+					<Button Click="Close_Click" Margin="6,0,0,0" Style="{StaticResource TitleBarButton}" Tag="Close">
+						<TextBlock Text="X" FontSize="14" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#FF00D2FF"/>
 					</Button>
 				</StackPanel>
 
 				<TextBlock Visibility="Collapsed" />
 			</DockPanel>
 		</Border>
+
+		<!-- Title bar bottom divider -->
+		<Border Height="1" Background="#FF3A3A5A" VerticalAlignment="Top" Margin="0,40,0,0" Grid.ColumnSpan="2"/>
 
 		<!-- Floating Jaemin panel toggle (visible only when panel is collapsed) -->
 		<ToggleButton x:Name="RightPanelFloatingToggle"
