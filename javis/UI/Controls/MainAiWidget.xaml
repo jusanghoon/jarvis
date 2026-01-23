@@ -24,6 +24,7 @@
             Background="#90FFFFFF"
             BorderBrush="#33FFFFFF"
             BorderThickness="1"
+            ClipToBounds="False"
             Padding="14,14,14,18">
         <Grid>
             <!-- Cyber grid overlay -->
@@ -41,74 +42,54 @@
 
             <Grid ClipToBounds="False">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="220"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-			<!-- Header: vertical command stack -->
-			<Border Grid.Row="0" Margin="0,0,0,10" Padding="10" ClipToBounds="False" Background="Transparent">
-				<Grid ClipToBounds="False">
-					<Grid.RowDefinitions>
-						<RowDefinition Height="Auto"/>
-						<RowDefinition Height="Auto"/>
-						<RowDefinition Height="*"/>
-						<RowDefinition Height="Auto"/>
-					</Grid.RowDefinitions>
+			<!-- Header: heart + system log -->
+			<Grid Grid.Row="0" ClipToBounds="False">
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="160"/>
+					<ColumnDefinition Width="*"/>
+				</Grid.ColumnDefinitions>
 
-					<controls:CyberHeartControl x:Name="SoloHeart"
-									   Grid.Row="0"
+				<controls:CyberHeartControl x:Name="SoloHeart"
+									   Grid.Column="0"
 									   Width="110"
 									   Height="110"
 									   HorizontalAlignment="Center"
 									   VerticalAlignment="Center"
-									   Margin="0,20,0,10"
 									   IsThinking="{Binding IsSoloThinkingStarting}"/>
 
-					<UniformGrid Grid.Row="1" Rows="2" Columns="2" HorizontalAlignment="Stretch" Margin="15,10,15,20">
-						<Button Content="SCAN" Command="{Binding ScanSystemCommand}" FontWeight="Bold" Height="66" Margin="0,0,10,10" Foreground="#FF00D2FF" BorderBrush="#FF00D2FF" Background="Transparent" BorderThickness="1" Padding="5">
-							<Button.Effect>
-								<DropShadowEffect BlurRadius="10" ShadowDepth="0" Opacity="0.3" Color="#FF00D2FF"/>
-							</Button.Effect>
-						</Button>
-						<Button Content="ANALYZE" Command="{Binding ProposeRefactorCommand}" FontWeight="Bold" Height="66" Margin="0,0,0,10" Foreground="#FF8A6BFF" BorderBrush="#FF8A6BFF" Background="Transparent" BorderThickness="1" Padding="5">
-							<Button.Effect>
-								<DropShadowEffect BlurRadius="10" ShadowDepth="0" Opacity="0.3" Color="#FF8A6BFF"/>
-							</Button.Effect>
-						</Button>
-						<Button Content="EXECUTE" Command="{Binding ExecuteRefactorCommand}" FontWeight="Bold" Height="66" Margin="0,0,10,0" Foreground="#FF00FF85" BorderBrush="#FF00FF85" Background="Transparent" BorderThickness="1" Padding="5">
-							<Button.Effect>
-								<DropShadowEffect BlurRadius="10" ShadowDepth="0" Opacity="0.3" Color="#FF00FF85"/>
-							</Button.Effect>
-						</Button>
-						<Button Content="RESTORE" Command="{Binding RestoreLastChangeCommand}" FontWeight="Bold" Height="66" Margin="0" Foreground="#FFFF4B4B" BorderBrush="#FFFF4B4B" Background="Transparent" BorderThickness="1" Padding="5">
-							<Button.Effect>
-								<DropShadowEffect BlurRadius="10" ShadowDepth="0" Opacity="0.3" Color="#FFFF4B4B"/>
-							</Button.Effect>
-						</Button>
-					</UniformGrid>
+				<Grid Grid.Column="1" ClipToBounds="False" Margin="18,0,0,0">
+					<Border Background="#FF0F0F1A" CornerRadius="10" BorderBrush="#FF252545" BorderThickness="1" Padding="15" ClipToBounds="False">
+						<Grid ClipToBounds="False">
+							<ScrollViewer x:Name="LogScrollViewer"
+										  VerticalScrollBarVisibility="Visible"
+										  HorizontalScrollBarVisibility="Disabled"
+										  Background="Transparent"
+										  Style="{StaticResource NeonScrollbarStyle}">
+								<TextBlock Text="{Binding ThinkingStage}"
+										   TextWrapping="Wrap"
+										   Foreground="#FF00D2FF"
+										   FontFamily="Cascadia Code"
+										   FontSize="12">
+									<TextBlock.Effect>
+										<DropShadowEffect BlurRadius="8" ShadowDepth="0" Opacity="0.6" Color="#FF00D2FF"/>
+									</TextBlock.Effect>
+								</TextBlock>
+							</ScrollViewer>
 
-					<Border Grid.Row="2" Background="#FF0F0F1A" CornerRadius="10" BorderBrush="#FF252545" BorderThickness="1" Padding="15" MinHeight="160">
-						<ScrollViewer x:Name="LogScrollViewer"
-									  VerticalScrollBarVisibility="Visible"
-									  HorizontalScrollBarVisibility="Disabled"
-									  Background="Transparent"
-									  Style="{StaticResource NeonScrollbarStyle}">
-							<TextBlock Text="{Binding ThinkingStage}"
-									   TextWrapping="Wrap"
-									   Foreground="#FF00D2FF"
-									   FontFamily="Cascadia Code"
-									   FontSize="12">
-								<TextBlock.Effect>
-									<DropShadowEffect BlurRadius="8" ShadowDepth="0" Opacity="0.6" Color="#FF00D2FF"/>
-								</TextBlock.Effect>
-							</TextBlock>
-						</ScrollViewer>
+							<ProgressBar Height="6"
+										 VerticalAlignment="Bottom"
+										 IsIndeterminate="{Binding IsSoloThinkingStarting}"
+										 Foreground="#FF8A6BFF"
+										 Background="#33000000"/>
+						</Grid>
 					</Border>
-
-					<ProgressBar Grid.Row="3" Height="6" Margin="0,10,0,0" IsIndeterminate="{Binding IsSoloThinkingStarting}" Foreground="#FF8A6BFF" Background="#33000000"/>
 				</Grid>
-			</Border>
+			</Grid>
 
             <!-- Messages -->
             <Border Grid.Row="1"

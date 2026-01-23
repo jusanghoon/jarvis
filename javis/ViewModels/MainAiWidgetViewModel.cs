@@ -26,10 +26,6 @@ public partial class MainAiWidgetViewModel : ObservableObject, ISoloUiSink
     private readonly string _solutionRoot;
     private readonly MainAiFileRelevanceStore _relevance;
 
-    private FileService.AnalysisReport? _lastScanReport;
-    private string? _lastRefactorTargetPath;
-    private string? _lastProposedContent;
-
     private SoloOrchestrator? _soloOrch;
     private SoloBackendAdapter? _soloOrchBackend;
     private long _soloMsgId;
@@ -57,7 +53,6 @@ public partial class MainAiWidgetViewModel : ObservableObject, ISoloUiSink
     [ObservableProperty] private bool _isBusy;
 
     // Manager System overlay / streaming feedback
-    [ObservableProperty] private string _thinkingProgress = string.Empty;
     [ObservableProperty] private string _thinkingStage = "";
 
     // explicit system-thinking start command (used by overlay button)
@@ -74,7 +69,6 @@ public partial class MainAiWidgetViewModel : ObservableObject, ISoloUiSink
             return;
 
         ThinkingStage = "관리자 권한으로 시스템 사유를 시작합니다...";
-        ThinkingProgress = "";
 
         IsSoloThinkingStarting = true;
         try { StartSoloThinkingCommand.NotifyCanExecuteChanged(); } catch { }
@@ -100,202 +94,6 @@ public partial class MainAiWidgetViewModel : ObservableObject, ISoloUiSink
         }
     }
 
-    [RelayCommand]
-    private async Task ScanSystemAsync()
-    {
-        ThinkingStage = "[SYSTEM SCAN] 프로젝트 무결성 검사를 시작합니다...\n";
-        ThinkingProgress = "";
-
-        IsSoloThinkingStarting = true;
-        try
-        {
-            var svc = new FileService();
-            var report = await svc.AnalyzeProjectStructureAsync(_solutionRoot, msg =>
-            {
-                try
-                {
-                    if (string.IsNullOrWhiteSpace(msg)) return;
-                    ThinkingStage = (ThinkingStage ?? "") + msg + "\n";
-                    ThinkingProgress = msg;
-                }
-                catch { }
-            });
-
-            _lastScanReport = report;
-
-            ThinkingStage = (ThinkingStage ?? "") + $"\n[SYSTEM SCAN] 요약: {report}\n";
-
-            if (report.LargeFiles1000Lines.Count > 0)
-            {
-                ThinkingStage += "[SYSTEM SCAN] 1000라인 이상 비대한 파일:\n";
-                foreach (var f in report.LargeFiles1000Lines.Take(10))
-                    ThinkingStage += $"- {f.RelativePath} ({f.Lines} lines)\n";
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            ThinkingStage = (ThinkingStage ?? "") + "[SYSTEM SCAN] 취소됨\n";
-        }
-        catch (Exception ex)
-        {
-            ThinkingStage = (ThinkingStage ?? "") + $"[SYSTEM SCAN] 오류: {ex.Message}\n";
-        }
-        finally
-        {
-            IsSoloThinkingStarting = false;
-        }
-    }
-
-    [RelayCommand]
-    private async Task ProposeRefactorAsync()
-    {
-        var report = _lastScanReport;
-        if (report is null)
-        {
-            ThinkingStage = "[REFACTOR] 먼저 시스템 스캔(ScanSystemCommand)을 실행해 AnalysisReport를 생성해줘.\n";
-            return;
-        }
-
-        var target = report.LargeFiles1000Lines.FirstOrDefault();
-        if (target is null)
-        {
-            ThinkingStage = "[REFACTOR] 1000라인 이상 파일이 없어. (LargeFiles1000Lines 비어있음)\n";
-            return;
-        }
-
-        IsSoloThinkingStarting = true;
-        ThinkingStage = $"[REFACTOR] 분석 대상: {target.RelativePath} ({target.Lines} lines)\n";
-        ThinkingProgress = "[REFACTOR] 파일 내용을 읽는 중...";
-
-        try
-        {
-            var fs = new FileService();
-            var full = System.IO.Path.GetFullPath(System.IO.Path.Combine(report.RootPath, target.RelativePath));
-            var content = await fs.GetFileContentForAnalysisAsync(full);
-
-            ThinkingProgress = "[REFACTOR] 최적화 제안서 생성 중...";
-            var response = await _help.AnalyzeWithCodeAsync(
-                userQuestion: "AnalysisReport 기반으로 이 파일을 분할/최적화해줘. 반드시 [REASON]과 [PLAN]을 먼저 출력해.",
-                relPath: target.RelativePath,
-                codeSnippet: content,
-                ct: CancellationToken.None);
-
-            ThinkingStage = (ThinkingStage ?? "") + "\n" + (response ?? "").Trim();
-
-            _lastRefactorTargetPath = target.RelativePath;
-            _lastProposedContent = response;
-        }
-        catch (Exception ex)
-        {
-            ThinkingStage = (ThinkingStage ?? "") + $"\n[REFACTOR] 오류: {ex.Message}\n";
-        }
-        finally
-        {
-            IsSoloThinkingStarting = false;
-            ThinkingProgress = "";
-        }
-    }
-
-    [RelayCommand]
-    private async Task ExecuteRefactorAsync()
-    {
-        if (IsSoloThinkingStarting) return;
-
-        var report = _lastScanReport;
-        if (report is null)
-        {
-            ThinkingStage = "[SYSTEM EXECUTION] 먼저 시스템 스캔을 실행해 대상 파일을 확정해줘.\n";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_lastRefactorTargetPath) || string.IsNullOrWhiteSpace(_lastProposedContent))
-        {
-            ThinkingStage = "[SYSTEM EXECUTION] 먼저 ProposeRefactorCommand로 제안서를 생성해줘.\n";
-            return;
-        }
-
-        IsSoloThinkingStarting = true;
-        ThinkingStage = (ThinkingStage ?? "") + "\n[SYSTEM EXECUTION] 리팩토링을 집행합니다. 원본은 자동 백업됩니다.\n";
-        ThinkingProgress = "[SYSTEM EXECUTION] 적용 중...";
-
-        try
-        {
-            var fs = new FileService();
-            var full = System.IO.Path.GetFullPath(System.IO.Path.Combine(report.RootPath, _lastRefactorTargetPath));
-
-            await fs.ApplyRefactorChangeAsync(full, _lastProposedContent, msg =>
-            {
-                try
-                {
-                    if (string.IsNullOrWhiteSpace(msg)) return;
-                    ThinkingStage = (ThinkingStage ?? "") + msg + "\n";
-                    ThinkingProgress = msg;
-                }
-                catch { }
-            });
-
-            ThinkingProgress = "[SYSTEM EXECUTION] 재스캔 중...";
-            await ScanSystemAsync();
-        }
-        catch (Exception ex)
-        {
-            ThinkingStage = (ThinkingStage ?? "") + $"[SYSTEM EXECUTION] 오류: {ex.Message}\n";
-        }
-        finally
-        {
-            IsSoloThinkingStarting = false;
-            ThinkingProgress = "";
-        }
-    }
-
-    [RelayCommand]
-    private async Task RestoreLastChangeAsync()
-    {
-        if (IsSoloThinkingStarting) return;
-
-        var report = _lastScanReport;
-        if (report is null)
-        {
-            ThinkingStage = "[SYSTEM RESTORED] 먼저 시스템 스캔을 실행해 루트 경로를 확인해줘.\n";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_lastRefactorTargetPath))
-        {
-            ThinkingStage = "[SYSTEM RESTORED] 복구할 대상 파일이 없습니다.\n";
-            return;
-        }
-
-        IsSoloThinkingStarting = true;
-        ThinkingProgress = "[SYSTEM RESTORE] 복구 중...";
-
-        try
-        {
-            var fs = new FileService();
-            var full = System.IO.Path.GetFullPath(System.IO.Path.Combine(report.RootPath, _lastRefactorTargetPath));
-            await fs.RestoreFromBackupAsync(full, msg =>
-            {
-                try
-                {
-                    if (string.IsNullOrWhiteSpace(msg)) return;
-                    ThinkingStage = (ThinkingStage ?? "") + msg + "\n";
-                    ThinkingProgress = msg;
-                }
-                catch { }
-            });
-
-            ThinkingStage = (ThinkingStage ?? "") + "[SYSTEM RESTORED] 시스템이 이전 상태로 완벽히 복구되었습니다.\n";
-        }
-        catch (Exception ex)
-        {
-            ThinkingStage = (ThinkingStage ?? "") + $"[SYSTEM RESTORED] 오류: {ex.Message}\n";
-        }
-        finally
-        {
-            IsSoloThinkingStarting = false;
-            ThinkingProgress = "";
-        }
-    }
 
     private void EnsureSoloOrchestrator()
     {
@@ -414,12 +212,6 @@ public partial class MainAiWidgetViewModel : ObservableObject, ISoloUiSink
     public void OnProgress(string text)
     {
         Debug.WriteLine($"[MainAiWidget] SOLO progress: {text}");
-        try
-        {
-            if (!string.IsNullOrWhiteSpace(text))
-                ThinkingProgress = text;
-        }
-        catch { }
     }
 
     public void OnComplete(string? finalText = null)
